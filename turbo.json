@@ -3,9 +3,7 @@
   "ui": "tui",
   "globalEnv": [
     "NODE_ENV",
-    "DATABASE_URL",
-    "REDIS_HOST",
-    "REDIS_PORT"
+    "DATABASE_URL"
   ],
   "tasks": {
     "build": {
@@ -16,7 +14,22 @@
         "DATABASE_URL",
         "NEXT_PUBLIC_API_URL",
         "FRONTEND_URL",
-        "JWT_SECRET"
+        "JWT_SECRET",
+        "JWT_REFRESH_SECRET",
+        "ENCRYPTION_SECRET",
+        "INTERNAL_API_KEY",
+        "HOSTNAME",
+        "PORT",
+        "UPSTASH_REDIS_REST_URL",
+        "UPSTASH_REDIS_REST_TOKEN",
+        "REDIS_HOST",
+        "REDIS_PORT",
+        "REDIS_PASSWORD",
+        "LOG_LEVEL",
+        "SENTRY_DSN",
+        "API_VERSION",
+        "ENABLE_HEALTH_CHECK",
+        "HEALTH_PORT"
       ]
     },
     "dev": {
@@ -27,24 +40,92 @@
         "DATABASE_URL",
         "REDIS_HOST",
         "REDIS_PORT",
-        "PORT"
+        "REDIS_PASSWORD",
+        "PORT",
+        "HOSTNAME",
+        "UPSTASH_REDIS_REST_URL",
+        "UPSTASH_REDIS_REST_TOKEN",
+        "JWT_SECRET",
+        "JWT_REFRESH_SECRET",
+        "ENCRYPTION_SECRET",
+        "INTERNAL_API_KEY",
+        "FRONTEND_URL",
+        "LOG_LEVEL",
+        "SENTRY_DSN",
+        "API_VERSION",
+        "ENABLE_HEALTH_CHECK",
+        "HEALTH_PORT"
       ]
     },
     "dev:api": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "env": [
+        "PORT",
+        "HOSTNAME",
+        "DATABASE_URL",
+        "UPSTASH_REDIS_REST_URL",
+        "UPSTASH_REDIS_REST_TOKEN",
+        "JWT_SECRET",
+        "JWT_REFRESH_SECRET",
+        "ENCRYPTION_SECRET",
+        "INTERNAL_API_KEY",
+        "FRONTEND_URL",
+        "LOG_LEVEL",
+        "SENTRY_DSN",
+        "API_VERSION"
+      ]
     },
     "dev:web": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "env": [
+        "DATABASE_URL",
+        "BETTER_AUTH_SECRET",
+        "BETTER_AUTH_URL",
+        "NEXT_PUBLIC_API_URL"
+      ]
     },
     "dev:worker": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "env": [
+        "DATABASE_URL",
+        "REDIS_HOST",
+        "REDIS_PORT",
+        "REDIS_PASSWORD",
+        "INTERNAL_API_KEY",
+        "API_BASE_URL",
+        "ENABLE_HEALTH_CHECK",
+        "HEALTH_PORT",
+        "LOG_LEVEL",
+        "SENTRY_DSN"
+      ]
     },
     "lint": {
       "dependsOn": ["^lint"],
-      "outputs": []
+      "outputs": [],
+      "env": [
+        "PORT",
+        "HOSTNAME",
+        "DATABASE_URL",
+        "UPSTASH_REDIS_REST_URL",
+        "UPSTASH_REDIS_REST_TOKEN",
+        "JWT_SECRET",
+        "JWT_REFRESH_SECRET",
+        "ENCRYPTION_SECRET",
+        "INTERNAL_API_KEY",
+        "FRONTEND_URL",
+        "LOG_LEVEL",
+        "SENTRY_DSN",
+        "API_VERSION",
+        "REDIS_HOST",
+        "REDIS_PORT",
+        "REDIS_PASSWORD",
+        "API_BASE_URL",
+        "ENABLE_HEALTH_CHECK",
+        "HEALTH_PORT"
+      ]
     },
     "check-types": {
       "dependsOn": ["^check-types"],

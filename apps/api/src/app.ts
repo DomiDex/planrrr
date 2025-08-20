@@ -79,7 +79,6 @@ export function createApp() {
 
   // Security headers
   app.use('*', secureHeaders({
-    // CSP not needed for API endpoints
     crossOriginEmbedderPolicy: false,
     crossOriginOpenerPolicy: false,
     crossOriginResourcePolicy: false,
@@ -113,7 +112,7 @@ export function createApp() {
   // Internal routes (for worker)
   app.get('/internal/post/:id', validateApiKey(), async (c) => {
     const postId = c.req.param('id');
-    // Return post data for worker processing
+    // TODO: Return post data for worker processing
     return c.json({ success: true, data: { postId } });
   });
 

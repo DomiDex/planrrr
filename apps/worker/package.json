@@ -1,17 +1,19 @@
 {
   "name": "@repo/worker",
   "version": "1.0.0",
+  "type": "module",
   "private": true,
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "lint": "eslint . --max-warnings 0"
+    "lint": "eslint . --max-warnings 0",
+    "check-types": "tsc --noEmit"
   },
   "dependencies": {
     "bullmq": "^5.1.0",
     "@repo/database": "workspace:*",
-    "redis": "^4.6.0"
+    "ioredis": "^5.4.0"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",

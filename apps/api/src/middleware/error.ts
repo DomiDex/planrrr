@@ -3,39 +3,58 @@
 // Dependencies: hono
 
 import { Context } from 'hono';
+import { logger } from '../lib/logger.js';
 
 export function errorHandler(err: Error, c: Context) {
-  console.error('API Error:', err);
-  
-  // Handle different error types
-  if (err.message.includes('Unauthorized')) {
+  logger.error('Request error:', {
+    error: err.message,
+    stack: err.stack,
+    path: c.req.path,
+    method: c.req.method,
+    requestId: c.get('requestId')
+  });
+
+  // Check for known error types
+  if (err.name === 'ValidationError') {
+    return c.json({
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: err.message
+      },
+      meta: {
+        requestId: c.get('requestId'),
+        timestamp: new Date().toISOString()
+      }
+    }, 400);
+  }
+
+  if (err.name === 'UnauthorizedError') {
     return c.json({
       success: false,
       error: {
         code: 'UNAUTHORIZED',
-        message: err.message
+        message: 'Authentication required'
+      },
+      meta: {
+        requestId: c.get('requestId'),
+        timestamp: new Date().toISOString()
       }
     }, 401);
   }
-  
-  if (err.message.includes('Not found')) {
-    return c.json({
-      success: false,
-      error: {
-        code: 'NOT_FOUND',
-        message: err.message
-      }
-    }, 404);
-  }
-  
+
   // Default error response
   return c.json({
     success: false,
     error: {
       code: 'INTERNAL_ERROR',
       message: process.env.NODE_ENV === 'production' 
-        ? 'An error occurred' 
+        ? 'An unexpected error occurred' 
         : err.message
+    },
+    meta: {
+      requestId: c.get('requestId'),
+      timestamp: new Date().toISOString()
     }
   }, 500);
 }

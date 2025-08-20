@@ -2,33 +2,31 @@
 // Path: apps/api/src/lib/shutdown.ts
 // Dependencies: none
 
+import type { Server } from 'http';
+import type { Http2Server } from 'http2';
 import { logger } from './logger.js';
 
-export async function gracefulShutdown(server: any, signal: string) {
-  logger.info(`Received ${signal}, starting graceful shutdown...`);
+type ServerType = Server | Http2Server;
+
+export async function gracefulShutdown(server: ServerType, signal: string) {
+  logger.info(`Graceful shutdown initiated: ${signal}`);
   
   // Stop accepting new connections
-  server.close(() => {
+  server.close((err) => {
+    if (err) {
+      logger.error('Error during server shutdown:', err);
+      process.exit(1);
+    }
+    
     logger.info('HTTP server closed');
-  });
-  
-  // Give ongoing requests 10 seconds to complete
-  setTimeout(() => {
-    logger.error('Could not close connections in time, forcefully shutting down');
-    process.exit(1);
-  }, 10000);
-  
-  try {
+    
     // Close database connections
-    // await prisma.$disconnect();
+    // Note: Prisma client should be closed here if needed
     
-    // Close Redis connections
-    // await redis.quit();
-    
-    logger.info('All connections closed, exiting');
-    process.exit(0);
-  } catch (error) {
-    logger.error('Error during shutdown:', error);
-    process.exit(1);
-  }
+    // Give ongoing requests 10 seconds to complete
+    setTimeout(() => {
+      logger.warn('Forcing shutdown after timeout');
+      process.exit(0);
+    }, 10000);
+  });
 }

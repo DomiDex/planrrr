@@ -1,128 +1,263 @@
-# planrrr.io
+# 🚀 planrrr.io - Open Source Social Media Scheduling Platform
 
-Open-source social media scheduling platform enabling teams to plan, create, and publish content across multiple social channels.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue)](https://www.typescriptlang.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-15-black)](https://nextjs.org/)
+[![Railway](https://img.shields.io/badge/Railway-Ready-purple)](https://railway.app/)
 
-## Architecture
+planrrr.io is an open-source, self-hostable social media scheduling platform that helps teams plan, create, and publish content across multiple social channels including Facebook, Instagram, X (Twitter), and YouTube.
 
-This monorepo contains:
+## 🌟 Features
 
-### Apps and Packages
+- 📅 **Visual Content Calendar** - Drag-and-drop scheduling interface
+- 🌐 **Multi-Platform Publishing** - Support for Facebook, Instagram, X, YouTube
+- 👥 **Team Collaboration** - Role-based access control and approval workflows
+- 📊 **Analytics Dashboard** - Track post performance and engagement
+- 🤖 **AI Content Generation** - Powered by OpenAI for caption suggestions
+- 🔄 **Bulk Operations** - CSV import and bulk scheduling
+- 🔒 **Self-Hostable** - Full control over your data
 
-- `web`: Main Next.js 15 application (platform UI)
-- `worker`: Background worker service for scheduled posts
-- `@repo/database`: Shared Prisma database schema and client
-- `@repo/ui`: Shared React component library
-- `@repo/eslint-config`: `eslint` configurations
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
+## 🏗️ Architecture
 
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
+Built as a Turborepo monorepo with three-service architecture:
 
 ```
-cd my-turborepo
-
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo build
-
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo build
-yarn dlx turbo build
-pnpm exec turbo build
+┌─────────────────────────┐
+│   Next.js (Vercel)      │  ← Frontend
+│   - React UI            │
+│   - Server Components   │
+└───────────┬─────────────┘
+            │ HTTPS
+            ▼
+┌─────────────────────────┐
+│   API (Railway)         │  ← Backend
+│   - Hono Framework      │
+│   - Business Logic      │
+│   - Authentication      │
+└───────────┬─────────────┘
+            │ Internal
+            ▼
+┌─────────────────────────┐
+│   Worker (Railway)      │  ← Jobs
+│   - BullMQ              │
+│   - Social Publishing   │
+│   - Scheduled Tasks     │
+└─────────────────────────┘
 ```
 
-You can build a specific package by using a [filter](https://turborepo.com/docs/crafting-your-repository/running-tasks#using-filters):
+## 📦 Tech Stack
 
-```
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo build --filter=docs
+- **Frontend**: Next.js 15, React 19, Tailwind CSS v4
+- **Backend**: Hono.js, Prisma ORM, Better Auth
+- **Database**: PostgreSQL (Neon)
+- **Queue**: BullMQ with Redis (Upstash)
+- **Deployment**: Vercel (Frontend) + Railway (Backend)
 
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo build --filter=docs
-yarn exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-```
+## 🚀 Quick Start
 
-### Develop
+### Prerequisites
 
-To develop all apps and packages, run the following command:
+- Node.js 18+
+- pnpm 9.0.0
+- PostgreSQL database (Neon recommended)
+- Redis instance (Upstash recommended)
 
-```
-cd my-turborepo
+### Development Setup
 
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo dev
-
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo dev
-yarn exec turbo dev
-pnpm exec turbo dev
+1. **Clone the repository**
+```bash
+git clone https://github.com/yourusername/planrrr.git
+cd planrrr
 ```
 
-You can develop a specific package by using a [filter](https://turborepo.com/docs/crafting-your-repository/running-tasks#using-filters):
+2. **Run setup script**
 
-```
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo dev --filter=web
-
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo dev --filter=web
-yarn exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
+Windows:
+```bash
+setup.bat
 ```
 
-### Remote Caching
-
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.com/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-```
-cd my-turborepo
-
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo login
-
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo login
-yarn exec turbo login
-pnpm exec turbo login
+macOS/Linux:
+```bash
+chmod +x setup.sh
+./setup.sh
 ```
 
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
+3. **Configure environment variables**
 
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
+Edit the generated `.env` files:
+- `apps/api/.env` - API configuration
+- `apps/worker/.env` - Worker configuration  
+- `apps/web/.env.local` - Frontend configuration
 
+Required variables:
+```env
+DATABASE_URL=postgresql://...
+UPSTASH_REDIS_REST_URL=https://...
+UPSTASH_REDIS_REST_TOKEN=...
+JWT_SECRET=generate-32-char-secret
+INTERNAL_API_KEY=generate-api-key
 ```
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo link
 
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo link
-yarn exec turbo link
-pnpm exec turbo link
+4. **Set up database**
+```bash
+pnpm db:push
 ```
 
-## Useful Links
+5. **Start development servers**
+```bash
+pnpm dev
+```
 
-Learn more about the power of Turborepo:
+The application will be available at:
+- Frontend: http://localhost:3000
+- API: http://localhost:4000
+- API Health: http://localhost:4000/health
 
-- [Tasks](https://turborepo.com/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.com/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.com/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.com/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.com/docs/reference/configuration)
-- [CLI Usage](https://turborepo.com/docs/reference/command-line-reference)
+## 📚 Documentation
+
+- [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) - Production deployment instructions
+- [TASK_MASTER.md](./TASK_MASTER.md) - Development roadmap and tasks
+- [IMPLEMENTATION_REPORT.md](./IMPLEMENTATION_REPORT.md) - Current implementation status
+- [CODE_REVIEW_REPORT.md](./CODE_REVIEW_REPORT.md) - Code quality analysis
+- [Architecture Documentation](./.claude/context/architecture-update.md)
+
+## 🛠️ Available Commands
+
+```bash
+# Development
+pnpm dev              # Start all services
+pnpm dev:web          # Start frontend only
+pnpm dev:api          # Start API only
+pnpm dev:worker       # Start worker only
+
+# Database
+pnpm db:generate      # Generate Prisma client
+pnpm db:push          # Push schema to database
+pnpm db:studio        # Open Prisma Studio
+
+# Building
+pnpm build            # Build all packages
+pnpm lint             # Run linter
+pnpm check-types      # TypeScript type checking
+pnpm test             # Run tests
+
+# Deployment
+./deploy.sh           # Deploy to production
+```
+
+## 🚢 Deployment
+
+### Quick Deploy
+
+1. **Railway (API & Worker)**
+```bash
+railway init
+railway up
+```
+
+2. **Vercel (Frontend)**
+```bash
+cd apps/web
+vercel --prod
+```
+
+See [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) for detailed instructions.
+
+## 📊 Project Status
+
+### ✅ Completed
+- Infrastructure setup
+- Deployment configuration
+- Database schema
+- Security middleware
+- Health monitoring
+
+### 🚧 In Progress
+- Authentication system
+- Post management
+- Social media publishers
+- Team collaboration
+- Calendar UI
+
+### 📋 Planned
+- Analytics dashboard
+- AI content generation
+- Bulk operations
+- Mobile app
+
+See [IMPLEMENTATION_REPORT.md](./IMPLEMENTATION_REPORT.md) for detailed status.
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our [Contributing Guide](./CONTRIBUTING.md) for details.
+
+### Development Workflow
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+### Code Standards
+
+- Follow the guidelines in [code-standards.md](./.claude/context/code-standards.md)
+- Write tests for new features
+- Ensure all tests pass before submitting PR
+- Keep PRs focused and atomic
+
+## 🔒 Security
+
+- All secrets must be stored in environment variables
+- Never commit `.env` files
+- Use rate limiting on all API endpoints
+- Report security vulnerabilities to security@planrrr.io
+
+## 📈 Performance
+
+Current targets:
+- API response time: < 200ms (p95)
+- Frontend Core Web Vitals: All green
+- Database queries: < 100ms
+- Worker job processing: < 30s
+
+## 💰 Costs
+
+Self-hosting costs (estimated):
+- **Small (< 100 users)**: ~$10/month
+- **Medium (< 1000 users)**: ~$50-100/month
+- **Large (< 10000 users)**: ~$200-500/month
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- [Next.js](https://nextjs.org/) - React framework
+- [Hono](https://hono.dev/) - Web framework
+- [Prisma](https://www.prisma.io/) - Database ORM
+- [BullMQ](https://docs.bullmq.io/) - Job queue
+- [Railway](https://railway.app/) - Deployment platform
+- [Vercel](https://vercel.com/) - Frontend hosting
+
+## 📞 Support
+
+- 📧 Email: support@planrrr.io
+- 💬 Discord: [Join our community](https://discord.gg/planrrr)
+- 🐛 Issues: [GitHub Issues](https://github.com/yourusername/planrrr/issues)
+- 📖 Docs: [docs.planrrr.io](https://docs.planrrr.io)
+
+## 🚀 Getting Help
+
+If you need help getting started:
+
+1. Check the [documentation](./docs)
+2. Search [existing issues](https://github.com/yourusername/planrrr/issues)
+3. Join our [Discord community](https://discord.gg/planrrr)
+4. Open a [new issue](https://github.com/yourusername/planrrr/issues/new)
+
+---
+
+Built with ❤️ by the planrrr.io community

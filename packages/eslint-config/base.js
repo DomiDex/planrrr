@@ -30,3 +30,6 @@ export const config = [
     ignores: ["dist/**"],
   },
 ];
+
+// Default export for direct usage
+export default config;

@@ -6,21 +6,32 @@ import { Context, Next } from 'hono';
 
 export function validateApiKey() {
   return async (c: Context, next: Next) => {
-    const apiKey = c.req.header('x-api-key');
-    const expectedKey = process.env.INTERNAL_API_KEY;
+    const apiKey = c.req.header('X-API-Key');
     
-    if (!expectedKey) {
-      console.warn('INTERNAL_API_KEY not configured');
+    if (!apiKey) {
+      return c.json({
+        success: false,
+        error: {
+          code: 'API_KEY_REQUIRED',
+          message: 'API key is required for this endpoint'
+        }
+      }, 401);
+    }
+    
+    const validApiKey = process.env.INTERNAL_API_KEY;
+    
+    if (!validApiKey) {
+      console.error('INTERNAL_API_KEY not configured');
       return c.json({
         success: false,
         error: {
           code: 'CONFIGURATION_ERROR',
-          message: 'API key validation not configured'
+          message: 'Server configuration error'
         }
       }, 500);
     }
     
-    if (apiKey !== expectedKey) {
+    if (apiKey !== validApiKey) {
       return c.json({
         success: false,
         error: {
@@ -30,6 +41,8 @@ export function validateApiKey() {
       }, 401);
     }
     
+    // Mark request as internal
+    c.set('isInternal', true);
     await next();
   };
 }

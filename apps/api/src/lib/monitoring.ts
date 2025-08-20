@@ -15,9 +15,9 @@ export function initializeSentry() {
       ],
     });
     
-    console.log('Sentry initialized');
+    console.log('✅ Sentry monitoring initialized');
   } else {
-    console.log('Sentry DSN not configured, monitoring disabled');
+    console.log('ℹ️ Sentry DSN not configured, monitoring disabled');
   }
 }
 
