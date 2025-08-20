@@ -1,0 +1,23 @@
+{
+  "name": "@repo/env",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./index.ts",
+  "types": "./index.ts",
+  "scripts": {
+    "check": "tsx scripts/validate.ts",
+    "generate-secrets": "tsx scripts/generate-secrets.ts"
+  },
+  "dependencies": {
+    "zod": "^3.25.0",
+    "dotenv": "^16.4.0",
+    "chalk": "^5.3.0"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
+  }
+}

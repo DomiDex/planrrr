@@ -13,10 +13,22 @@ node_modules
 
 # Local env files
 .env
+.env.*
+!.env.example
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Secret vault files
+.env.vault
+.vault.key
+.env.secrets
+env-validation-report.json
+
+# Security audit reports
+audit-report.json
+SECURITY_AUDIT_REPORT.md
 
 # Testing
 coverage
