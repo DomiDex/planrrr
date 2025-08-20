@@ -8,21 +8,25 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint --max-warnings 0",
-    "check-types": "tsc --noEmit"
+    "check-types": "tsc --noEmit",
+    "verify:security": "tsx scripts/verify-security.ts",
+    "test:security": "curl -H 'x-middleware-subrequest: middleware:middleware:middleware' http://localhost:3000/api/protected",
+    "audit": "pnpm audit --audit-level=high",
+    "audit:fix": "pnpm audit --fix"
   },
   "dependencies": {
-    "@repo/ui": "workspace:*",
+    "@orpc/client": "^1.0.0",
+    "@orpc/server": "^1.0.0",
     "@repo/database": "workspace:*",
+    "@repo/ui": "workspace:*",
+    "@tanstack/react-query": "^5.17.0",
+    "better-auth": "^0.5.0",
+    "hono": "^3.12.0",
     "next": "^15.4.2",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "@orpc/server": "^1.0.0",
-    "@orpc/client": "^1.0.0",
-    "better-auth": "^0.5.0",
-    "hono": "^3.12.0",
     "zod": "^3.22.0",
-    "zustand": "^4.5.0",
-    "@tanstack/react-query": "^5.17.0"
+    "zustand": "^4.5.0"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",
@@ -31,6 +35,7 @@
     "@types/react": "19.1.0",
     "@types/react-dom": "19.1.1",
     "eslint": "^9.33.0",
+    "tsx": "^4.20.4",
     "typescript": "5.9.2"
   }
 }
