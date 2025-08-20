@@ -1,4 +1,10 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# Ignore all files in the .claude directory [KEEP IT AT ALL COSTS]
+.claude/*
+.mcp.json
+CLAUDE.md
+tasks/*
+claude_commands.json
 
 # Dependencies
 node_modules

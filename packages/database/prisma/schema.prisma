@@ -1,0 +1,99 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String?
+  image         String?
+  role          Role     @default(MEMBER)
+  teamId        String?
+  team          Team?    @relation(fields: [teamId], references: [id])
+  posts         Post[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Team {
+  id            String   @id @default(cuid())
+  name          String
+  slug          String   @unique
+  members       User[]
+  posts         Post[]
+  connections   Connection[]
+  createdAt     DateTime @default(now())
+}
+
+model Post {
+  id            String   @id @default(cuid())
+  content       String   @db.Text
+  mediaUrls     String[]
+  status        PostStatus @default(DRAFT)
+  scheduledAt   DateTime?
+  publishedAt   DateTime?
+  platforms     Platform[]
+  authorId      String
+  author        User     @relation(fields: [authorId], references: [id])
+  teamId        String
+  team          Team     @relation(fields: [teamId], references: [id])
+  publications  Publication[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Publication {
+  id            String   @id @default(cuid())
+  postId        String
+  post          Post     @relation(fields: [postId], references: [id])
+  platform      Platform
+  externalId    String?
+  status        PublicationStatus @default(PENDING)
+  error         String?
+  publishedAt   DateTime?
+  metrics       Json?
+}
+
+model Connection {
+  id            String   @id @default(cuid())
+  teamId        String
+  team          Team     @relation(fields: [teamId], references: [id])
+  platform      Platform
+  accessToken   String   @db.Text
+  refreshToken  String?  @db.Text
+  expiresAt     DateTime?
+  metadata      Json?
+  createdAt     DateTime @default(now())
+}
+
+enum Role {
+  ADMIN
+  EDITOR
+  MEMBER
+}
+
+enum PostStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+  FAILED
+}
+
+enum Platform {
+  FACEBOOK
+  INSTAGRAM
+  TWITTER
+  YOUTUBE
+}
+
+enum PublicationStatus {
+  PENDING
+  PUBLISHING
+  PUBLISHED
+  FAILED
+}

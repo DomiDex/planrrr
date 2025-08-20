@@ -1,25 +1,18 @@
-# Turborepo starter
+# planrrr.io
 
-This Turborepo starter is maintained by the Turborepo core team.
+Open-source social media scheduling platform enabling teams to plan, create, and publish content across multiple social channels.
 
-## Using this example
+## Architecture
 
-Run the following command:
-
-```sh
-npx create-turbo@latest
-```
-
-## What's inside?
-
-This Turborepo includes the following packages/apps:
+This monorepo contains:
 
 ### Apps and Packages
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
+- `web`: Main Next.js 15 application (platform UI)
+- `worker`: Background worker service for scheduled posts
+- `@repo/database`: Shared Prisma database schema and client
+- `@repo/ui`: Shared React component library
+- `@repo/eslint-config`: `eslint` configurations
 - `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
 
 Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
