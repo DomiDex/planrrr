@@ -1,0 +1,29 @@
+[build]
+builder = "nixpacks"
+buildCommand = "pnpm install --frozen-lockfile && pnpm build --filter=@repo/api --filter=@repo/worker"
+
+[deploy]
+startCommand = "node apps/api/dist/index.js & node apps/worker/dist/index.js"
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+restartPolicyType = "always"
+region = "us-west1"
+
+[[services]]
+name = "planrrr-backend"
+type = "web"
+
+[services.planrrr-backend]
+port = 4000
+internalPort = 4000
+protocol = "http"
+
+[[services.planrrr-backend.healthcheck]]
+path = "/health"
+interval = 30
+timeout = 5
+maxRetries = 3
+
+[variables]
+PORT = "4000"
+NODE_ENV = "production"

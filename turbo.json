@@ -1,27 +1,71 @@
 {
   "$schema": "https://turborepo.com/schema.json",
   "ui": "tui",
+  "globalEnv": [
+    "NODE_ENV",
+    "DATABASE_URL",
+    "REDIS_HOST",
+    "REDIS_PORT"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build", "db:generate"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": [".next/**", "!.next/cache/**", "dist/**"]
-    },
-    "lint": {
-      "dependsOn": ["^lint"]
-    },
-    "check-types": {
-      "dependsOn": ["^check-types"]
+      "outputs": [".next/**", "!.next/cache/**", "dist/**"],
+      "env": [
+        "DATABASE_URL",
+        "NEXT_PUBLIC_API_URL",
+        "FRONTEND_URL",
+        "JWT_SECRET"
+      ]
     },
     "dev": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "persistent": true,
+      "env": [
+        "DATABASE_URL",
+        "REDIS_HOST",
+        "REDIS_PORT",
+        "PORT"
+      ]
+    },
+    "dev:api": {
       "cache": false,
       "persistent": true
     },
+    "dev:web": {
+      "cache": false,
+      "persistent": true
+    },
+    "dev:worker": {
+      "cache": false,
+      "persistent": true
+    },
+    "lint": {
+      "dependsOn": ["^lint"],
+      "outputs": []
+    },
+    "check-types": {
+      "dependsOn": ["^check-types"],
+      "outputs": []
+    },
+    "test": {
+      "dependsOn": ["build"],
+      "outputs": [],
+      "inputs": ["src/**/*.tsx", "src/**/*.ts", "test/**/*.ts"]
+    },
     "db:generate": {
-      "cache": false
+      "cache": false,
+      "inputs": ["prisma/schema.prisma"]
     },
     "db:push": {
-      "cache": false
+      "cache": false,
+      "inputs": ["prisma/schema.prisma"]
+    },
+    "db:studio": {
+      "cache": false,
+      "persistent": true
     }
   }
 }
