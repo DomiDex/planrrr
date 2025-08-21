@@ -74,23 +74,9 @@ export const rateLimit = {
   },
 } as const;
 
-// OAuth providers configuration
+// OAuth disabled - using email/password authentication only
 export const oauth = {
-  google: {
-    clientId: env.GOOGLE_CLIENT_ID,
-    clientSecret: env.GOOGLE_CLIENT_SECRET,
-    enabled: Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET),
-  },
-  facebook: {
-    appId: env.FACEBOOK_APP_ID,
-    appSecret: env.FACEBOOK_APP_SECRET,
-    enabled: Boolean(env.FACEBOOK_APP_ID && env.FACEBOOK_APP_SECRET),
-  },
-  x: {
-    clientId: env.X_CLIENT_ID,
-    clientSecret: env.X_CLIENT_SECRET,
-    enabled: Boolean(env.X_CLIENT_ID && env.X_CLIENT_SECRET),
-  },
+  enabled: false,
 } as const;
 
 // AI configuration

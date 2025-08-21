@@ -33,29 +33,7 @@ const webEnvSchema = z.object({
   // CSRF Protection
   CSRF_SECRET: z.string().min(16, 'CSRF secret must be at least 16 characters'),
   
-  // OAuth - Google
-  GOOGLE_CLIENT_ID: z.string().optional().refine(
-    (val) => {
-      const isProd = process.env.NODE_ENV === 'production';
-      return !isProd || (val && val.length > 0);
-    },
-    'Google OAuth is required in production'
-  ),
-  GOOGLE_CLIENT_SECRET: z.string().optional().refine(
-    (val) => {
-      const isProd = process.env.NODE_ENV === 'production';
-      return !isProd || (val && val.length > 0);
-    },
-    'Google OAuth is required in production'
-  ),
-  
-  // OAuth - Facebook
-  FACEBOOK_APP_ID: z.string().optional(),
-  FACEBOOK_APP_SECRET: z.string().optional(),
-  
-  // OAuth - X (Twitter)
-  X_CLIENT_ID: z.string().optional(),
-  X_CLIENT_SECRET: z.string().optional(),
+  // OAuth disabled - using email/password authentication only
   
   // Storage Configuration (R2/S3)
   STORAGE_PROVIDER: z.enum(['r2', 's3', 'local']).default('local'),
@@ -90,7 +68,7 @@ const webEnvSchema = z.object({
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
   
   // Feature Flags
-  FEATURE_OAUTH_ENABLED: z.coerce.boolean().default(true),
+  FEATURE_OAUTH_ENABLED: z.coerce.boolean().default(false),
   FEATURE_AI_CONTENT_GENERATION: z.coerce.boolean().default(false),
   FEATURE_TEAM_COLLABORATION: z.coerce.boolean().default(true),
   FEATURE_ANALYTICS_DASHBOARD: z.coerce.boolean().default(false),
