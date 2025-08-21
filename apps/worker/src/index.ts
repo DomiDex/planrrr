@@ -1,142 +1,196 @@
 // Package: @repo/worker
 // Path: apps/worker/src/index.ts
-// Dependencies: bullmq, ioredis, @repo/database
+// Dependencies: @repo/redis, @repo/database
 
-import { Worker, Queue, QueueEvents } from 'bullmq';
-import { Redis } from 'ioredis';
+import { initializeRedis, RedisClient, QueueManager } from '@repo/redis';
 import { prisma } from '@repo/database';
+import type { Job } from 'bullmq';
 
-// Redis connection configuration
-const connection = new Redis({
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379'),
-  password: process.env.REDIS_PASSWORD,
-  maxRetriesPerRequest: null, // Important for workers
-  enableReadyCheck: false, // Important for Railway
-  family: 0, // Important for Railway (IPv4/IPv6)
-  retryStrategy(times: number) {
-    const delay = Math.min(times * 50, 2000);
-    console.log(`Redis connection retry #${times}, waiting ${delay}ms`);
-    return delay;
-  }
-});
+// Initialize Redis with provider configuration
+initializeRedis();
 
-// Create queue for post publishing (used by Worker)
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const publishQueue = new Queue('publish', {
-  connection,
+// Connect to Redis databases
+await RedisClient.connect();
+console.log('✅ Redis connections established');
+
+// Test Redis connectivity
+const isHealthy = await RedisClient.testConnection();
+if (!isHealthy) {
+  console.error('❌ Redis health check failed');
+  process.exit(1);
+}
+
+// Create publish queue
+const publishQueue = QueueManager.createQueue({
+  name: 'publish-posts',
   defaultJobOptions: {
-    attempts: 3,
+    attempts: parseInt(process.env.WORKER_RETRY_ATTEMPTS || '3'),
     backoff: {
       type: 'exponential',
-      delay: 2000
+      delay: parseInt(process.env.WORKER_RETRY_DELAY || '2000')
     },
     removeOnComplete: {
-      age: 24 * 3600, // Keep completed jobs for 24 hours
-      count: 100 // Keep last 100 completed jobs
+      age: 24 * 3600,
+      count: 100
     },
     removeOnFail: {
-      age: 7 * 24 * 3600 // Keep failed jobs for 7 days
+      age: 7 * 24 * 3600,
+      count: 500
     }
   }
 });
 
-// Create worker to process jobs
-const publishWorker = new Worker(
-  'publish',
-  async (job) => {
-    console.log(`Processing job ${job.id}: ${job.name}`);
-    const { postId, platform } = job.data;
+// Define job processor
+async function processPublishJob(job: Job) {
+  const { postId, platform } = job.data;
+  console.log(`Processing job ${job.id}: Publishing post ${postId} to ${platform}`);
 
-    try {
-      // Update job progress
-      await job.updateProgress(10);
+  try {
+    await job.updateProgress(10);
 
-      // Fetch post from database
-      const post = await prisma.post.findUnique({
-        where: { id: postId },
-        include: {
-          team: true,
-          author: true
-        }
-      });
-
-      if (!post) {
-        throw new Error(`Post ${postId} not found`);
+    const post = await prisma.post.findUnique({
+      where: { id: postId },
+      include: {
+        team: true,
+        author: true,
+        publications: true
       }
+    });
 
-      await job.updateProgress(30);
+    if (!post) {
+      throw new Error(`Post ${postId} not found`);
+    }
 
-      // TODO: Fetch social media connection
-      // TODO: Publish to platform
-      // For now, just simulate processing
-      await new Promise(resolve => setTimeout(resolve, 1000));
+    if (post.status === 'PUBLISHED') {
+      console.log(`Post ${postId} already published`);
+      return { alreadyPublished: true };
+    }
 
-      await job.updateProgress(70);
+    await job.updateProgress(30);
 
-      // Update post status
-      await prisma.post.update({
+    const connection = await prisma.connection.findFirst({
+      where: {
+        teamId: post.teamId,
+        platform,
+        status: 'ACTIVE'
+      }
+    });
+
+    if (!connection) {
+      throw new Error(`No active ${platform} connection for team ${post.teamId}`);
+    }
+
+    await job.updateProgress(50);
+
+    // TODO: Implement platform-specific publishers
+    console.log(`Publishing to ${platform}...`);
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    await job.updateProgress(80);
+
+    await prisma.$transaction([
+      prisma.post.update({
         where: { id: postId },
         data: {
           status: 'PUBLISHED',
           publishedAt: new Date()
         }
-      });
+      }),
+      prisma.publication.create({
+        data: {
+          postId,
+          platform,
+          platformPostId: `${platform.toLowerCase()}_${Date.now()}`,
+          publishedAt: new Date(),
+          status: 'PUBLISHED',
+          url: `https://${platform.toLowerCase()}.com/post/example`
+        }
+      })
+    ]);
 
-      await job.updateProgress(100);
+    await job.updateProgress(100);
 
-      console.log(`Successfully published post ${postId} to ${platform}`);
-      return { success: true, publishedAt: new Date() };
-    } catch (error) {
-      console.error(`Failed to publish post ${postId}:`, error);
-      throw error;
-    }
-  },
+    console.log(`✅ Successfully published post ${postId} to ${platform}`);
+    return {
+      success: true,
+      publishedAt: new Date(),
+      platform
+    };
+
+  } catch (error) {
+    console.error(`❌ Failed to publish post ${postId}:`, error);
+    
+    await prisma.publication.create({
+      data: {
+        postId,
+        platform,
+        status: 'FAILED',
+        error: error instanceof Error ? error.message : 'Unknown error',
+        failedAt: new Date()
+      }
+    });
+
+    throw error;
+  }
+}
+
+// Create worker
+const publishWorker = QueueManager.createWorker(
+  'publish-posts',
+  processPublishJob,
   {
-    connection,
-    concurrency: 5, // Process up to 5 jobs concurrently
+    concurrency: parseInt(process.env.WORKER_CONCURRENCY || '5'),
     limiter: {
-      max: 10,
-      duration: 1000 // Max 10 jobs per second
+      max: parseInt(process.env.WORKER_MAX_JOBS_PER_SECOND || '10'),
+      duration: 1000
     }
   }
 );
 
-// Queue event monitoring
-const queueEvents = new QueueEvents('publish', { connection });
+// Create queue events monitor
+const queueEvents = QueueManager.createQueueEvents('publish-posts');
 
-queueEvents.on('completed', ({ jobId, returnvalue }) => {
-  console.log(`Job ${jobId} completed:`, returnvalue);
-});
+// Monitor queue statistics periodically
+setInterval(async () => {
+  const stats = await QueueManager.getQueueStats('publish-posts');
+  if (stats) {
+    console.log('📊 Queue Statistics:', {
+      active: stats.active,
+      waiting: stats.waiting,
+      completed: stats.completed,
+      failed: stats.failed
+    });
+  }
+}, 60000);
 
-queueEvents.on('failed', ({ jobId, failedReason }) => {
-  console.error(`Job ${jobId} failed:`, failedReason);
-});
-
-// Worker event handlers
-publishWorker.on('ready', () => {
-  console.log('✅ Worker is ready and waiting for jobs');
-});
-
-publishWorker.on('error', (error) => {
-  console.error('Worker error:', error);
-});
-
-publishWorker.on('stalled', (jobId) => {
-  console.warn(`Job ${jobId} stalled and will be retried`);
-});
-
-// Health check endpoint (simple HTTP server)
+// Health check server
 if (process.env.ENABLE_HEALTH_CHECK === 'true') {
   const http = await import('http');
-  const healthServer = http.createServer((req, res) => {
+  
+  const healthServer = http.createServer(async (req, res) => {
     if (req.url === '/health') {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({
-        status: 'healthy',
-        worker: 'running',
-        timestamp: new Date().toISOString()
-      }));
+      const [redisHealth, queueStats] = await Promise.all([
+        RedisClient.healthCheck('queue'),
+        QueueManager.getQueueStats('publish-posts')
+      ]);
+
+      const health = {
+        status: redisHealth.connected ? 'healthy' : 'unhealthy',
+        timestamp: new Date().toISOString(),
+        redis: {
+          connected: redisHealth.connected,
+          latency: redisHealth.latency
+        },
+        queue: queueStats || { error: 'Queue not available' },
+        database: await prisma.$queryRaw`SELECT 1`
+          .then(() => ({ connected: true }))
+          .catch(() => ({ connected: false }))
+      };
+
+      res.writeHead(redisHealth.connected ? 200 : 503, {
+        'Content-Type': 'application/json'
+      });
+      res.end(JSON.stringify(health, null, 2));
     } else {
       res.writeHead(404);
       res.end('Not found');
@@ -145,33 +199,39 @@ if (process.env.ENABLE_HEALTH_CHECK === 'true') {
 
   const healthPort = parseInt(process.env.HEALTH_PORT || '3001');
   healthServer.listen(healthPort, () => {
-    console.log(`Health check server running on port ${healthPort}`);
+    console.log(`🏥 Health check server running on port ${healthPort}`);
   });
 }
 
 // Graceful shutdown
 async function gracefulShutdown(signal: string) {
-  console.log(`Received ${signal}, starting graceful shutdown...`);
+  console.log(`\n📛 Received ${signal}, starting graceful shutdown...`);
   
-  // Stop accepting new jobs
-  await publishWorker.close();
-  
-  // Wait for current jobs to complete (max 30 seconds)
   const timeout = setTimeout(() => {
-    console.log('Forcing shutdown after timeout');
+    console.error('⏱️ Shutdown timeout exceeded, forcing exit');
     process.exit(1);
   }, 30000);
 
   try {
-    await publishWorker.disconnect();
-    await queueEvents.disconnect();
-    await connection.quit();
+    await QueueManager.pauseWorker('publish-posts');
+    console.log('⏸️ Worker paused');
+    
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    
+    await QueueManager.closeAll();
+    console.log('🔌 Queue connections closed');
+    
+    await RedisClient.disconnect();
+    console.log('🔌 Redis disconnected');
+    
     await prisma.$disconnect();
+    console.log('🔌 Database disconnected');
+    
     clearTimeout(timeout);
-    console.log('Graceful shutdown complete');
+    console.log('✅ Graceful shutdown complete');
     process.exit(0);
   } catch (error) {
-    console.error('Error during shutdown:', error);
+    console.error('❌ Error during shutdown:', error);
     clearTimeout(timeout);
     process.exit(1);
   }
@@ -181,18 +241,24 @@ async function gracefulShutdown(signal: string) {
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
-// Handle uncaught errors
+// Handle errors
 process.on('uncaughtException', (error) => {
-  console.error('Uncaught exception:', error);
+  console.error('💥 Uncaught exception:', error);
   gracefulShutdown('uncaughtException');
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled rejection at:', promise, 'reason:', reason);
+  console.error('💥 Unhandled rejection at:', promise, 'reason:', reason);
 });
 
-console.log('🚀 Worker service started');
-console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-console.log(`Redis: ${process.env.REDIS_HOST || 'localhost'}:${process.env.REDIS_PORT || '6379'}`);
-console.log(`Concurrency: 5 jobs`);
-console.log('Waiting for jobs...');
+// Startup info
+console.log('🚀 Worker Service Started');
+console.log('═'.repeat(50));
+console.log('Configuration:');
+console.log(`  Environment: ${process.env.NODE_ENV || 'development'}`);
+console.log(`  Redis Provider: ${process.env.REDIS_PROVIDER || 'local'}`);
+console.log(`  Concurrency: ${process.env.WORKER_CONCURRENCY || '5'} jobs`);
+console.log(`  Rate Limit: ${process.env.WORKER_MAX_JOBS_PER_SECOND || '10'} jobs/second`);
+console.log(`  Retry Attempts: ${process.env.WORKER_RETRY_ATTEMPTS || '3'}`);
+console.log('═'.repeat(50));
+console.log('⏳ Waiting for jobs...\n');
