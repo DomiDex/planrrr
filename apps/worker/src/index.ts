@@ -52,7 +52,7 @@ async function processPublishJob(job: Job) {
       where: { id: postId },
       include: {
         team: true,
-        author: true,
+        user: true,
         publications: true
       }
     });
@@ -100,7 +100,7 @@ async function processPublishJob(job: Job) {
         data: {
           postId,
           platform,
-          platformPostId: `${platform.toLowerCase()}_${Date.now()}`,
+          externalId: `${platform.toLowerCase()}_${Date.now()}`,
           publishedAt: new Date(),
           status: 'PUBLISHED',
           url: `https://${platform.toLowerCase()}.com/post/example`
@@ -125,8 +125,7 @@ async function processPublishJob(job: Job) {
         postId,
         platform,
         status: 'FAILED',
-        error: error instanceof Error ? error.message : 'Unknown error',
-        failedAt: new Date()
+        error: error instanceof Error ? error.message : 'Unknown error'
       }
     });
 

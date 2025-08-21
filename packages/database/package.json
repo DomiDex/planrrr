@@ -5,17 +5,41 @@
   "main": "./index.ts",
   "types": "./index.ts",
   "scripts": {
+    "lint": "eslint . --max-warnings 0",
+    "check-types": "tsc --noEmit",
     "db:generate": "prisma generate",
-    "db:push": "prisma db push",
+    "db:push": "prisma db push --skip-generate",
+    "db:push:force": "prisma db push --force-reset",
     "db:migrate": "prisma migrate dev",
-    "db:studio": "prisma studio"
+    "db:migrate:create": "prisma migrate dev --create-only",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:migrate:reset": "prisma migrate reset",
+    "db:migrate:status": "prisma migrate status",
+    "db:seed": "prisma db seed",
+    "db:studio": "prisma studio",
+    "db:validate": "prisma validate",
+    "db:format": "prisma format",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
-    "@prisma/client": "^6.14.0"
+    "@prisma/client": "^6.14.0",
+    "@node-rs/argon2": "^2.0.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.33.0",
+    "@faker-js/faker": "^9.3.0",
+    "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
+    "@types/node": "^20",
+    "@typescript-eslint/eslint-plugin": "^8.19.0",
+    "@typescript-eslint/parser": "^8.19.0",
+    "eslint": "^9.33.0",
+    "globals": "^15.14.0",
     "prisma": "^6.14.0",
+    "tsx": "^4.7.0",
     "typescript": "^5.3.0"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   }
 }

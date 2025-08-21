@@ -1,6 +1,5 @@
 import { Queue, Worker, QueueEvents, type Job, type JobsOptions, type WorkerOptions } from 'bullmq';
 import { RedisClient } from './index.js';
-import type { Redis } from 'ioredis';
 
 export interface QueueConfig {
   name: string;
@@ -8,11 +7,20 @@ export interface QueueConfig {
   workerOptions?: WorkerOptions;
 }
 
-export interface JobResult<T = any> {
+export interface JobResult<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
   timestamp: Date;
+}
+
+export interface QueueStats {
+  waiting: number;
+  active: number;
+  completed: number;
+  failed: number;
+  delayed: number;
+  paused: number;
 }
 
 export class QueueManager {
@@ -20,7 +28,7 @@ export class QueueManager {
   private static workers: Map<string, Worker> = new Map();
   private static queueEvents: Map<string, QueueEvents> = new Map();
 
-  static createQueue<T = any>(config: QueueConfig): Queue<T> {
+  static createQueue<T = unknown>(config: QueueConfig): Queue<T> {
     if (this.queues.has(config.name)) {
       return this.queues.get(config.name) as Queue<T>;
     }
@@ -28,7 +36,7 @@ export class QueueManager {
     const connection = RedisClient.getQueueConnection();
     
     const queue = new Queue<T>(config.name, {
-      connection: connection as any,
+      connection: connection,
       defaultJobOptions: {
         attempts: 3,
         backoff: {
@@ -51,10 +59,10 @@ export class QueueManager {
     return queue;
   }
 
-  static createWorker<T = any, R = any>(
+  static createWorker<T = unknown, R = unknown>(
     queueName: string,
     processor: (job: Job<T>) => Promise<R>,
-    options?: WorkerOptions
+    options?: Partial<WorkerOptions>
   ): Worker<T, R> {
     if (this.workers.has(queueName)) {
       throw new Error(`Worker for queue "${queueName}" already exists`);
@@ -81,13 +89,13 @@ export class QueueManager {
         }
       },
       {
-        connection: connection as any,
-        concurrency: 5,
-        limiter: {
+        ...options,
+        connection: connection,
+        concurrency: options?.concurrency ?? 5,
+        limiter: options?.limiter ?? {
           max: 10,
           duration: 1000,
         },
-        ...options,
       }
     );
 
@@ -115,7 +123,7 @@ export class QueueManager {
     const connection = RedisClient.getQueueConnection();
     
     const events = new QueueEvents(queueName, {
-      connection: connection as any,
+      connection: connection,
     });
 
     events.on('waiting', ({ jobId }) => {
@@ -265,7 +273,7 @@ export class QueueManager {
     await Promise.all(closePromises);
   }
 
-  static async monitorQueues(): Promise<Map<string, any>> {
+  static async monitorQueues(): Promise<Map<string, QueueStats>> {
     const stats = new Map();
     
     for (const [name] of this.queues) {

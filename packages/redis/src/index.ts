@@ -250,7 +250,7 @@ export class RedisClient {
 
   private static parseMemoryInfo(info: string): { used: number; peak: number; total?: number } {
     const lines = info.split('\r\n');
-    const stats: any = {};
+    const stats: Record<string, string> = {};
     
     for (const line of lines) {
       const [key, value] = line.split(':');
@@ -310,5 +310,6 @@ export const initializeRedis = (config?: RedisConnectionConfig): void => {
 };
 
 // Export RedisClient as the main class
+export { QueueManager } from './queue-manager.js';
 
 export default RedisClient;

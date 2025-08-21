@@ -1,88 +1,41 @@
+// Package: @repo/database
+// Path: packages/database/prisma/schema.prisma
+// Purpose: Complete database schema with multi-schema support, soft deletes, and performance optimization
+
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema", "postgresqlExtensions", "views", "relationJoins"]
+  binaryTargets   = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_DATABASE_URL")
+  schemas   = ["public", "auth"]
 }
 
-model User {
-  id            String   @id @default(cuid())
-  email         String   @unique
-  name          String?
-  image         String?
-  role          Role     @default(MEMBER)
-  teamId        String?
-  team          Team?    @relation(fields: [teamId], references: [id])
-  posts         Post[]
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-}
-
-model Team {
-  id            String   @id @default(cuid())
-  name          String
-  slug          String   @unique
-  members       User[]
-  posts         Post[]
-  connections   Connection[]
-  createdAt     DateTime @default(now())
-}
-
-model Post {
-  id            String   @id @default(cuid())
-  content       String   @db.Text
-  mediaUrls     String[]
-  status        PostStatus @default(DRAFT)
-  scheduledAt   DateTime?
-  publishedAt   DateTime?
-  platforms     Platform[]
-  authorId      String
-  author        User     @relation(fields: [authorId], references: [id])
-  teamId        String
-  team          Team     @relation(fields: [teamId], references: [id])
-  publications  Publication[]
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-}
-
-model Publication {
-  id            String   @id @default(cuid())
-  postId        String
-  post          Post     @relation(fields: [postId], references: [id])
-  platform      Platform
-  externalId    String?
-  status        PublicationStatus @default(PENDING)
-  error         String?
-  publishedAt   DateTime?
-  metrics       Json?
-}
-
-model Connection {
-  id            String   @id @default(cuid())
-  teamId        String
-  team          Team     @relation(fields: [teamId], references: [id])
-  platform      Platform
-  accessToken   String   @db.Text
-  refreshToken  String?  @db.Text
-  expiresAt     DateTime?
-  metadata      Json?
-  createdAt     DateTime @default(now())
-}
+// ==========================================
+// ENUMS - All in public schema
+// ==========================================
 
 enum Role {
+  OWNER
   ADMIN
-  EDITOR
   MEMBER
+  VIEWER
+
+  @@schema("public")
 }
 
 enum PostStatus {
   DRAFT
   SCHEDULED
+  PUBLISHING
   PUBLISHED
   FAILED
+
+  @@schema("public")
 }
 
 enum Platform {
@@ -90,11 +43,438 @@ enum Platform {
   INSTAGRAM
   TWITTER
   YOUTUBE
+  LINKEDIN
+  TIKTOK
+
+  @@schema("public")
 }
 
 enum PublicationStatus {
   PENDING
-  PUBLISHING
   PUBLISHED
   FAILED
+
+  @@schema("public")
+}
+
+enum ConnectionStatus {
+  ACTIVE
+  EXPIRED
+  DISCONNECTED
+  ERROR
+
+  @@schema("public")
+}
+
+// ==========================================
+// AUTH SCHEMA MODELS - User authentication
+// ==========================================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  name          String?
+  image         String?
+  password      String?   @db.Text
+  role          Role      @default(MEMBER)
+
+  // Two-factor authentication
+  twoFactorEnabled Boolean @default(false)
+  twoFactorSecret  String? @db.Text
+
+  // Relationships
+  teamId   String?
+  team     Team?     @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  posts    Post[]
+  sessions Session[]
+  accounts Account[]
+  auditLogs AuditLog[]
+
+  // Timestamps
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime? // Soft delete
+
+  // Indexes for performance
+  @@index([email])
+  @@index([teamId])
+  @@index([deletedAt])
+  @@index([createdAt])
+  @@map("users")
+  @@schema("auth")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?  @db.Text
+  lastActivity DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+  @@map("sessions")
+  @@schema("auth")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("accounts")
+  @@schema("auth")
+}
+
+// ==========================================
+// PUBLIC SCHEMA MODELS - Business logic
+// ==========================================
+
+model Team {
+  id      String  @id @default(cuid())
+  name    String
+  slug    String  @unique
+  logo    String?
+  website String?
+  bio     String? @db.Text
+
+  // Billing & Subscription
+  plan           String   @default("free") // free, starter, pro, enterprise
+  stripeCustomerId String? @unique
+  stripeSubscriptionId String? @unique
+  trialEndsAt    DateTime?
+
+  // Settings (JSON for flexibility)
+  settings Json @default("{}")
+  // Example: { 
+  //   timezone: "America/New_York",
+  //   defaultPlatforms: ["TWITTER", "FACEBOOK"],
+  //   autoPublish: false,
+  //   notifications: { email: true, inApp: true }
+  // }
+
+  // Limits
+  monthlyPostLimit Int @default(100)
+  teamMemberLimit  Int @default(5)
+
+  // Relationships
+  users       User[]
+  posts       Post[]
+  connections Connection[]
+  mediaAssets MediaAsset[]
+  templates   Template[]
+  auditLogs   AuditLog[]
+
+  // Timestamps
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime? // Soft delete
+
+  @@index([slug])
+  @@index([stripeCustomerId])
+  @@index([deletedAt])
+  @@map("teams")
+  @@schema("public")
+}
+
+model Connection {
+  id          String           @id @default(cuid())
+  teamId      String
+  team        Team             @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  platform    Platform
+  accountName String
+  accountId   String
+  accessToken String           @db.Text /// @encrypted - Note for encryption middleware
+  refreshToken String?         @db.Text /// @encrypted
+  expiresAt   DateTime?
+  status      ConnectionStatus @default(ACTIVE)
+  
+  // Platform-specific metadata
+  metadata Json @default("{}")
+  // Example for Facebook: { pageId: "123", pageName: "My Page" }
+  // Example for Twitter: { username: "@handle", userId: "456" }
+
+  // Statistics
+  lastSync     DateTime?
+  syncErrors   Int      @default(0)
+  postsPublished Int    @default(0)
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([teamId, platform, accountId])
+  @@index([teamId, platform])
+  @@index([status])
+  @@map("connections")
+  @@schema("public")
+}
+
+model Post {
+  id      String @id @default(cuid())
+  teamId  String
+  team    Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId  String
+  user    User   @relation(fields: [userId], references: [id])
+
+  // Content
+  content   String     @db.Text
+  mediaUrls String[]
+  platforms Platform[]
+  hashtags  String[]   @default([])
+
+  // AI-generated content metadata
+  aiGenerated Boolean @default(false)
+  aiPrompt    String? @db.Text
+  aiModel     String?
+
+  // Scheduling
+  status       PostStatus @default(DRAFT)
+  scheduledAt  DateTime?
+  publishedAt  DateTime?
+  failedAt     DateTime?
+  failureReason String?   @db.Text
+
+  // Threading support
+  threadId     String?
+  threadPosition Int?
+
+  // Template reference
+  templateId String?
+  template   Template? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  // Metadata (flexible JSON)
+  metadata Json @default("{}")
+  // Example: { 
+  //   location: { lat: 40.7128, lng: -74.0060 },
+  //   mentions: ["@user1", "@user2"],
+  //   customFields: { campaign: "summer-sale" }
+  // }
+
+  // Relationships
+  publications Publication[]
+  mediaAssets  MediaAsset[]
+  analytics    Analytics[]
+
+  // Timestamps
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime? // Soft delete
+
+  // Compound indexes for common queries
+  @@index([teamId, status])
+  @@index([teamId, userId])
+  @@index([userId])
+  @@index([scheduledAt])
+  @@index([status])
+  @@index([deletedAt])
+  @@index([createdAt(sort: Desc)])
+  @@map("posts")
+  @@schema("public")
+}
+
+model Publication {
+  id         String            @id @default(cuid())
+  postId     String
+  post       Post              @relation(fields: [postId], references: [id], onDelete: Cascade)
+  platform   Platform
+  externalId String?           // Platform's post ID
+  status     PublicationStatus @default(PENDING)
+  publishedAt DateTime?
+  error      String?           @db.Text
+  retryCount Int               @default(0)
+  
+  // Platform-specific URLs
+  url        String?
+  editUrl    String?
+  
+  // Metadata from platform
+  metadata   Json @default("{}")
+  // Example: { impressions: 0, reach: 0, engagement: 0 }
+
+  // Performance metrics (updated via webhooks/polling)
+  views      Int @default(0)
+  likes      Int @default(0)
+  shares     Int @default(0)
+  comments   Int @default(0)
+  clicks     Int @default(0)
+  saves      Int @default(0)
+
+  // Timestamps
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  lastSyncAt DateTime?
+
+  @@unique([postId, platform])
+  @@index([postId])
+  @@index([platform, status])
+  @@index([publishedAt])
+  @@map("publications")
+  @@schema("public")
+}
+
+model MediaAsset {
+  id       String  @id @default(cuid())
+  teamId   String
+  team     Team    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  postId   String?
+  post     Post?   @relation(fields: [postId], references: [id], onDelete: SetNull)
+
+  // File information
+  url      String
+  key      String   @unique // S3/R2 key
+  filename String
+  mimeType String
+  size     Int      // bytes
+  width    Int?     // pixels for images
+  height   Int?     // pixels for images
+  duration Int?     // seconds for videos
+
+  // Processing status
+  status   String @default("uploaded") // uploaded, processing, ready, failed
+  thumbnailUrl String?
+  
+  // Alt text for accessibility
+  altText  String? @db.Text
+  caption  String? @db.Text
+
+  // Metadata
+  metadata Json @default("{}")
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([teamId])
+  @@index([postId])
+  @@index([key])
+  @@map("media_assets")
+  @@schema("public")
+}
+
+model Template {
+  id      String @id @default(cuid())
+  teamId  String
+  team    Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  
+  name        String
+  description String? @db.Text
+  content     String  @db.Text
+  platforms   Platform[]
+  hashtags    String[]
+  mediaUrls   String[]
+  
+  // Template variables
+  variables   Json @default("[]")
+  // Example: [{ name: "product_name", type: "text", required: true }]
+  
+  // Usage tracking
+  usageCount  Int @default(0)
+  lastUsedAt  DateTime?
+  
+  // Categorization
+  category    String?
+  tags        String[]
+  
+  posts       Post[]
+  
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([teamId])
+  @@index([category])
+  @@map("templates")
+  @@schema("public")
+}
+
+model Analytics {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  platform  Platform
+  date      DateTime @default(now())
+  
+  // Metrics
+  impressions Int @default(0)
+  reach       Int @default(0)
+  engagement  Int @default(0)
+  clicks      Int @default(0)
+  
+  // Demographic data
+  demographics Json @default("{}")
+  // Example: { 
+  //   age: { "18-24": 20, "25-34": 45 },
+  //   gender: { "male": 60, "female": 40 },
+  //   location: { "US": 70, "UK": 30 }
+  // }
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  
+  @@unique([postId, platform, date])
+  @@index([postId])
+  @@index([platform])
+  @@index([date])
+  @@map("analytics")
+  @@schema("public")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  teamId    String?
+  team      Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  
+  action    String   // create, update, delete, login, logout, etc.
+  resource  String   // post, connection, team, etc.
+  resourceId String?
+  
+  // Change tracking
+  oldValues Json?
+  newValues Json?
+  
+  // Request context
+  ipAddress String?
+  userAgent String?  @db.Text
+  method    String?  // GET, POST, PUT, DELETE
+  path      String?  // API endpoint
+  
+  // Additional details
+  details   Json @default("{}")
+  
+  createdAt DateTime @default(now())
+  
+  // Indexes for efficient querying
+  @@index([userId])
+  @@index([teamId])
+  @@index([action])
+  @@index([resource])
+  @@index([createdAt(sort: Desc)])
+  @@map("audit_logs")
+  @@schema("public")
 }
