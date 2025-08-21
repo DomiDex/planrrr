@@ -54,3 +54,11 @@ yarn-error.log*
 # Misc
 .DS_Store
 *.pem
+
+# Docker data volumes
+data/
+!data/.gitkeep
+
+# Docker environment files
+.env.docker
+!.env.docker.example

@@ -1,0 +1,102 @@
+# Docker ignore file
+# This file specifies which files and directories should be excluded
+# when building Docker images
+
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# Dependencies
+node_modules
+**/node_modules
+.pnp
+.pnp.js
+
+# Environment files
+.env
+.env.*
+!.env.example
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Build outputs
+.next
+out
+build
+dist
+*.tsbuildinfo
+
+# Testing
+coverage
+.nyc_output
+
+# Turbo
+.turbo
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Documentation
+*.md
+!README.md
+docs
+
+# Docker files
+docker-compose*.yml
+Dockerfile*
+.dockerignore
+
+# Data volumes
+data/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Temporary files
+tmp
+temp
+.tmp
+
+# CI/CD
+.github
+.gitlab-ci.yml
+.travis.yml
+.circleci
+
+# Scripts (except necessary ones)
+scripts/*.sh
+scripts/*.bat
+!scripts/docker-entrypoint.sh
+
+# Development files
+.editorconfig
+.prettierrc
+.prettierignore
+.eslintrc*
+.eslintignore
+
+# Test files
+__tests__
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+
+# Misc
+.claude
+tasks
+claude_commands.json
+meta.json
+audit-report.json
