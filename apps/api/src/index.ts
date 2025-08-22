@@ -13,7 +13,7 @@ initializeSentry();
 
 // Configuration
 const port = parseInt(process.env.PORT || '4000', 10);
-const hostname = process.env.HOSTNAME || '0.0.0.0';
+const hostname = '0.0.0.0'; // Bind to all interfaces to allow localhost access
 const isDevelopment = process.env.NODE_ENV === 'development';
 
 // Create Hono app
@@ -24,12 +24,12 @@ const server = serve({
   fetch: app.fetch,
   port,
   hostname
-}, (info) => {
+}, (info: { port: number; address: string }) => {
   logger.info('🚀 API Server running', {
     port: info.port,
-    hostname,
+    hostname: 'localhost',
     environment: process.env.NODE_ENV,
-    url: `http://${hostname}:${info.port}`
+    url: `http://localhost:${info.port}`
   });
 });
 

@@ -10,7 +10,7 @@ export * from '@prisma/client';
 export { Prisma };
 
 // Export RLS utilities
-export * from './rls';
+export * from './rls.js';
 
 // Define the extended client type
 type PrismaClientWithExtensions = ReturnType<typeof createPrismaClient>;

@@ -2,7 +2,7 @@
 // Path: apps/api/src/app.ts
 // Dependencies: hono, @sentry/node
 
-import { Hono } from 'hono';
+import { Hono, Context } from 'hono';
 import { logger as honoLogger } from 'hono/logger';
 import { compress } from 'hono/compress';
 import { timing } from 'hono/timing';
@@ -31,6 +31,8 @@ import {
   securityViolationReporter
 } from './middleware/security.js';
 import { apiVersioning } from './middleware/versioning.js';
+import { handleORPC } from './lib/orpc.js';
+// import { createORPCRateLimit } from './middleware/orpcRateLimit.js';
 
 export function createApp() {
   const app = new Hono<{ Variables: AppContext }>();
@@ -79,7 +81,7 @@ export function createApp() {
   app.route('/health', healthRoutes);
   
   // Security.txt endpoint
-  app.get('/.well-known/security.txt', (c) => {
+  app.get('/.well-known/security.txt', (c: Context) => {
     const securityTxt = `
 Contact: security@planrrr.io
 Expires: ${new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()}
@@ -94,7 +96,7 @@ Acknowledgments: https://planrrr.io/security/acknowledgments
   });
   
   // API version info endpoint
-  app.get('/api/version', (c) => {
+  app.get('/api/version', (c: Context<{ Variables: AppContext }>) => {
     const version = c.get('apiVersion') || 'v1';
     return c.json({
       success: true,
@@ -114,6 +116,9 @@ Acknowledgments: https://planrrr.io/security/acknowledgments
   app.use('/api/auth/*', strictRateLimiter()); // Strict for auth
   app.use('/api/ai/*', rateLimiter({ windowMs: 60000, max: 20 })); // Lower for AI
   app.use('/api/*', rateLimiter()); // Standard for other endpoints
+  
+  // ORPC endpoint
+  app.all('/api/orpc/*', handleORPC);
 
   // API routes with versioning support
   app.route('/api/auth', authRoutes);
@@ -133,16 +138,20 @@ Acknowledgments: https://planrrr.io/security/acknowledgments
   app.route('/api/v2/teams', teamRoutes);
   app.route('/api/v2/connections', connectionRoutes);
   app.route('/api/v2/ai', aiRoutes);
+  
+  // Versioned ORPC routes
+  app.all('/api/v1/orpc/*', handleORPC);
+  app.all('/api/v2/orpc/*', handleORPC);
 
   // Internal routes (for worker)
-  app.get('/internal/post/:id', validateApiKey(), async (c) => {
+  app.get('/internal/post/:id', validateApiKey(), async (c: Context<{ Variables: AppContext }>) => {
     const postId = c.req.param('id');
     // TODO: Return post data for worker processing
     return c.json({ success: true, data: { postId } });
   });
 
   // Sentry error tracking
-  app.onError((err, c) => {
+  app.onError((err: Error, c: Context<{ Variables: AppContext }>) => {
     Sentry.captureException(err, {
       extra: {
         requestId: c.get('requestId'),
@@ -154,7 +163,7 @@ Acknowledgments: https://planrrr.io/security/acknowledgments
   });
 
   // 404 handler
-  app.notFound((c) => {
+  app.notFound((c: Context<{ Variables: AppContext }>) => {
     const requestId = c.get('requestId');
     const apiVersion = c.get('apiVersion');
     
