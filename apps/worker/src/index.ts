@@ -21,7 +21,7 @@ if (!isHealthy) {
 }
 
 // Create publish queue
-const publishQueue = QueueManager.createQueue({
+QueueManager.createQueue({
   name: 'publish-posts',
   defaultJobOptions: {
     attempts: parseInt(process.env.WORKER_RETRY_ATTEMPTS || '3'),
@@ -134,7 +134,7 @@ async function processPublishJob(job: Job) {
 }
 
 // Create worker
-const publishWorker = QueueManager.createWorker(
+QueueManager.createWorker(
   'publish-posts',
   processPublishJob,
   {
@@ -147,7 +147,7 @@ const publishWorker = QueueManager.createWorker(
 );
 
 // Create queue events monitor
-const queueEvents = QueueManager.createQueueEvents('publish-posts');
+QueueManager.createQueueEvents('publish-posts');
 
 // Monitor queue statistics periodically
 setInterval(async () => {

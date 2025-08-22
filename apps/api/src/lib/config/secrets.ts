@@ -103,7 +103,7 @@ export function verifySecrets(): { valid: boolean; errors?: string[] } {
       valid: errors.length === 0,
       errors: errors.length > 0 ? errors : undefined
     };
-  } catch (error) {
+  } catch {
     return {
       valid: false,
       errors: ['Failed to load secrets']

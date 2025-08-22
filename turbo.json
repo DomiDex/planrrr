@@ -134,9 +134,14 @@
         "REDIS_HOST",
         "REDIS_PORT",
         "REDIS_PASSWORD",
+        "REDIS_PROVIDER",
         "API_BASE_URL",
         "ENABLE_HEALTH_CHECK",
-        "HEALTH_PORT"
+        "HEALTH_PORT",
+        "WORKER_RETRY_ATTEMPTS",
+        "WORKER_RETRY_DELAY",
+        "WORKER_CONCURRENCY",
+        "WORKER_MAX_JOBS_PER_SECOND"
       ]
     },
     "check-types": {

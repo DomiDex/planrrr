@@ -1,11 +1,47 @@
 // TODO: Enable when @repo/env package is properly configured
 // import { webEnv } from '@repo/env';
 
+// Define environment variables type
+interface ProcessEnv {
+  NODE_ENV?: string;
+  DATABASE_URL?: string;
+  BETTER_AUTH_SECRET?: string;
+  BETTER_AUTH_URL?: string;
+  BETTER_AUTH_TRUSTED_ORIGINS?: string;
+  SESSION_MAX_AGE?: string;
+  STORAGE_PROVIDER?: string;
+  R2_ACCOUNT_ID?: string;
+  R2_ACCESS_KEY_ID?: string;
+  R2_SECRET_ACCESS_KEY?: string;
+  R2_BUCKET_NAME?: string;
+  R2_PUBLIC_URL?: string;
+  EMAIL_PROVIDER?: string;
+  EMAIL_FROM?: string;
+  RESEND_API_KEY?: string;
+  RATE_LIMIT_ENABLED?: string;
+  RATE_LIMIT_WINDOW?: string;
+  RATE_LIMIT_MAX_REQUESTS?: string;
+  UPSTASH_REDIS_REST_URL?: string;
+  UPSTASH_REDIS_REST_TOKEN?: string;
+  AI_PROVIDER?: string;
+  OPENAI_API_KEY?: string;
+  ANTHROPIC_API_KEY?: string;
+  SENTRY_DSN?: string;
+  SENTRY_ENVIRONMENT?: string;
+  POSTHOG_KEY?: string;
+  POSTHOG_HOST?: string;
+  LOG_LEVEL?: string;
+  FEATURE_OAUTH_ENABLED?: string;
+  FEATURE_AI_CONTENT_GENERATION?: string;
+  FEATURE_TEAM_COLLABORATION?: string;
+  FEATURE_ANALYTICS_DASHBOARD?: string;
+}
+
 // Temporary fallback until @repo/env is configured
-const env = process.env as any;
+const env = process.env as ProcessEnv;
 
 // Type-safe environment variable access
-export function getEnv<K extends keyof typeof env>(key: K): typeof env[K] {
+export function getEnv<K extends keyof ProcessEnv>(key: K): ProcessEnv[K] {
   const value = env[key];
   if (value === undefined) {
     throw new Error(`Missing environment variable: ${String(key)}`);
