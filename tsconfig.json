@@ -1,0 +1,39 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "allowJs": true,
+    "checkJs": false,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": {
+      "@repo/database": ["./packages/database/index.ts"],
+      "@repo/database/*": ["./packages/database/*"],
+      "@repo/shared": ["./packages/shared/src/index.ts"],
+      "@repo/shared/*": ["./packages/shared/src/*"],
+      "@repo/ui": ["./packages/ui/src"],
+      "@repo/ui/*": ["./packages/ui/src/*"],
+      "@repo/redis": ["./packages/redis/src/index.ts"],
+      "@repo/redis/*": ["./packages/redis/src/*"]
+    },
+    "types": ["vitest/globals", "node"]
+  },
+  "include": [
+    "test/**/*.ts",
+    "test/**/*.tsx",
+    "vitest.config.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    ".next",
+    "coverage"
+  ]
+}

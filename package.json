@@ -7,6 +7,12 @@
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "turbo run check-types",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest watch",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "db:generate": "pnpm --filter @repo/database db:generate",
     "db:push": "pnpm --filter @repo/database db:push",
     "db:studio": "pnpm --filter @repo/database db:studio",
@@ -35,9 +41,17 @@
     "docker:prune": "docker system prune -af --volumes"
   },
   "devDependencies": {
+    "@faker-js/faker": "^9.3.0",
+    "@types/ioredis": "^5.0.0",
+    "@types/node": "^24.3.0",
+    "@vitest/coverage-v8": "^3.2.4",
+    "@vitest/ui": "^3.2.4",
+    "happy-dom": "^18.0.1",
+    "ioredis": "^5.4.0",
     "prettier": "^3.6.2",
     "turbo": "^2.5.4",
-    "typescript": "5.9.2"
+    "typescript": "5.9.2",
+    "vitest": "^3.2.4"
   },
   "packageManager": "pnpm@9.0.0",
   "engines": {

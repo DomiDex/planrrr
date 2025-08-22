@@ -9,6 +9,10 @@
     "start": "next start",
     "lint": "next lint --max-warnings 0",
     "check-types": "tsc --noEmit",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest watch",
     "verify:security": "tsx scripts/verify-security.ts",
     "test:security": "curl -H 'x-middleware-subrequest: middleware:middleware:middleware' http://localhost:3000/api/protected",
     "audit": "pnpm audit --audit-level=high",
@@ -32,11 +36,18 @@
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
+    "@testing-library/jest-dom": "^6.8.0",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^22.15.3",
     "@types/react": "19.1.0",
     "@types/react-dom": "19.1.1",
+    "@vitejs/plugin-react": "^5.0.1",
     "eslint": "^9.33.0",
+    "msw": "2.7.2",
     "tsx": "^4.20.4",
-    "typescript": "5.9.2"
+    "typescript": "5.9.2",
+    "vite-tsconfig-paths": "^5.1.4",
+    "whatwg-fetch": "^3.6.20"
   }
 }
