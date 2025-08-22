@@ -2,33 +2,33 @@
 // Path: apps/api/src/routes/teams.ts
 // Dependencies: hono
 
-import { Hono } from 'hono';
+import { Hono, Context } from 'hono';
 
 const teams = new Hono();
 
-teams.get('/', async (c) => {
+teams.get('/', async (c: Context) => {
   // TODO: Implement list teams
   return c.json({ success: true, data: [] });
 });
 
-teams.get('/:id', async (c) => {
+teams.get('/:id', async (c: Context) => {
   const id = c.req.param('id');
   // TODO: Implement get team
   return c.json({ success: true, data: { id } });
 });
 
-teams.post('/', async (c) => {
+teams.post('/', async (c: Context) => {
   // TODO: Implement create team
   return c.json({ success: true, message: 'Create team endpoint' });
 });
 
-teams.patch('/:id', async (c) => {
+teams.patch('/:id', async (c: Context) => {
   const id = c.req.param('id');
   // TODO: Implement update team
   return c.json({ success: true, data: { id } });
 });
 
-teams.post('/:id/invite', async (c) => {
+teams.post('/:id/invite', async (c: Context) => {
   const id = c.req.param('id');
   // TODO: Implement invite member
   return c.json({ success: true, message: `Invite sent for team ${id}` });

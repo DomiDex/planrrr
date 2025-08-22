@@ -17,12 +17,16 @@ import {
   PasswordResetRequestSchema
 } from '../schemas/auth.schema.js';
 import { logger } from '../lib/logger.js';
+import { loadSecrets } from '../lib/config/secrets.js';
+
+// Load secrets once at module initialization
+const secrets = loadSecrets();
 
 // Generate JWT token
 function generateToken(userId: string, email: string): string {
   return jwt.sign(
     { userId, email },
-    process.env.JWT_SECRET!,
+    secrets.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || '7d' } as jwt.SignOptions
   );
 }
@@ -31,7 +35,7 @@ function generateToken(userId: string, email: string): string {
 function generateRefreshToken(userId: string): string {
   return jwt.sign(
     { userId, type: 'refresh' },
-    process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET!,
+    secrets.JWT_REFRESH_SECRET,
     { expiresIn: '30d' }
   );
 }
@@ -180,7 +184,7 @@ export const authRouter = os.router({
       try {
         const payload = jwt.verify(
           refreshToken,
-          process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET!
+          secrets.JWT_REFRESH_SECRET
         ) as { userId: string; type: string };
         
         if (payload.type !== 'refresh') {
@@ -231,7 +235,7 @@ export const authRouter = os.router({
         // Generate reset token (simplified - in production, send email)
         const resetToken = jwt.sign(
           { userId: user.id, type: 'reset' },
-          process.env.JWT_SECRET!,
+          secrets.JWT_SECRET,
           { expiresIn: '1h' }
         );
         

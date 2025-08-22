@@ -2,11 +2,11 @@
 // Path: apps/api/src/routes/ai.ts
 // Dependencies: hono
 
-import { Hono } from 'hono';
+import { Hono, Context } from 'hono';
 
 const ai = new Hono();
 
-ai.post('/generate-caption', async (c) => {
+ai.post('/generate-caption', async (c: Context) => {
   // TODO: Implement caption generation
   return c.json({ 
     success: true, 
@@ -16,7 +16,7 @@ ai.post('/generate-caption', async (c) => {
   });
 });
 
-ai.post('/generate-image', async (c) => {
+ai.post('/generate-image', async (c: Context) => {
   // TODO: Implement image generation
   return c.json({ 
     success: true, 
@@ -26,7 +26,7 @@ ai.post('/generate-image', async (c) => {
   });
 });
 
-ai.post('/enhance-content', async (c) => {
+ai.post('/enhance-content', async (c: Context) => {
   // TODO: Implement content enhancement
   return c.json({ 
     success: true, 

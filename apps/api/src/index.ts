@@ -7,6 +7,16 @@ import { createApp } from './app.js';
 import { logger } from './lib/logger.js';
 import { initializeSentry } from './lib/monitoring.js';
 import { gracefulShutdown } from './lib/shutdown.js';
+import { verifySecrets } from './lib/config/secrets.js';
+
+// Verify secrets are properly configured
+const secretsCheck = verifySecrets();
+if (!secretsCheck.valid) {
+  logger.error('❌ Secrets verification failed', { errors: secretsCheck.errors });
+  if (process.env.NODE_ENV === 'production') {
+    process.exit(1);
+  }
+}
 
 // Initialize monitoring
 initializeSentry();

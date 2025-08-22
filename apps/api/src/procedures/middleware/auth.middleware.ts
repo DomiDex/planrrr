@@ -7,6 +7,7 @@ import jwt from 'jsonwebtoken';
 import { prisma } from '@repo/database';
 import { publicProcedure } from '../context.js';
 import { logger } from '../../lib/logger.js';
+import { loadSecrets } from '../../lib/config/secrets.js';
 
 // JWT payload type
 interface JWTPayload {
@@ -16,10 +17,13 @@ interface JWTPayload {
   exp?: number;
 }
 
+// Load secrets once at module initialization
+const secrets = loadSecrets();
+
 // Verify JWT token
 async function verifyToken(token: string): Promise<JWTPayload | null> {
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET!) as JWTPayload;
+    const payload = jwt.verify(token, secrets.JWT_SECRET) as JWTPayload;
     return payload;
   } catch (error) {
     logger.warn('Invalid JWT token', { error });

@@ -1,14 +1,28 @@
 // Package: @repo/api
 // Path: apps/api/src/middleware/apiKey.ts
-// Dependencies: hono
+// Dependencies: hono, crypto
 
 import { Context, Next } from 'hono';
+import crypto from 'crypto';
+import { loadSecrets } from '../lib/config/secrets.js';
+import { logger } from '../lib/logger.js';
 
+// Load secrets once at module initialization
+const secrets = loadSecrets();
+
+/**
+ * Validate internal API key for worker communication
+ * Uses timing-safe comparison to prevent timing attacks
+ */
 export function validateApiKey() {
   return async (c: Context, next: Next) => {
     const apiKey = c.req.header('X-API-Key');
     
     if (!apiKey) {
+      logger.warn('API key missing in request', {
+        path: c.req.path,
+        ip: c.req.header('X-Forwarded-For')
+      });
       return c.json({
         success: false,
         error: {
@@ -18,10 +32,10 @@ export function validateApiKey() {
       }, 401);
     }
     
-    const validApiKey = process.env.INTERNAL_API_KEY;
+    const validApiKey = secrets.INTERNAL_API_KEY;
     
     if (!validApiKey) {
-      console.error('INTERNAL_API_KEY not configured');
+      logger.error('INTERNAL_API_KEY not configured');
       return c.json({
         success: false,
         error: {
@@ -31,7 +45,22 @@ export function validateApiKey() {
       }, 500);
     }
     
-    if (apiKey !== validApiKey) {
+    // Use timing-safe comparison to prevent timing attacks
+    const providedBuffer = Buffer.from(apiKey);
+    const validBuffer = Buffer.from(validApiKey);
+    
+    // Ensure buffers are same length for timing-safe comparison
+    let isValid = providedBuffer.length === validBuffer.length;
+    
+    if (isValid) {
+      isValid = crypto.timingSafeEqual(providedBuffer, validBuffer);
+    }
+    
+    if (!isValid) {
+      logger.warn('Invalid API key attempt', {
+        path: c.req.path,
+        ip: c.req.header('X-Forwarded-For') || c.req.header('X-Real-IP')
+      });
       return c.json({
         success: false,
         error: {
