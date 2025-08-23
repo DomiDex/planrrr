@@ -62,8 +62,11 @@ export class FacebookPublisher extends BasePublisher {
       });
       
       return {
+        success: true,
         externalId,
-        url: postUrl
+        platformPostId: externalId,
+        url: postUrl,
+        publishedAt: new Date()
       };
     } catch (error) {
       this.logger.error('Facebook publish failed', { 
@@ -164,21 +167,74 @@ export class FacebookPublisher extends BasePublisher {
   validate(content: string): ValidationResult {
     const limit = PLATFORM_CONFIG.FACEBOOK.CHAR_LIMIT;
     const errors: string[] = [];
+    const warnings: string[] = [];
     
     if (content.length > limit) {
-      errors.push(`Content exceeds Facebook's ${limit} character limit`);
+      errors.push(`Content exceeds Facebook character limit of ${limit}`);
     }
     
     if (content.length === 0) {
       errors.push('Content cannot be empty');
     }
     
+    // Count URLs in content
+    const urlRegex = /https?:\/\/[^\s]+/g;
+    const urls = content.match(urlRegex) || [];
+    
+    // Count hashtags
+    const hashtagRegex = /#\w+/g;
+    const hashtags = content.match(hashtagRegex) || [];
+    
+    if (hashtags.length > 30) {
+      warnings.push('Consider using fewer hashtags for better engagement');
+    }
+    
     return {
       valid: errors.length === 0,
       characterCount: content.length,
       characterLimit: limit,
-      errors
+      errors,
+      warnings,
+      metadata: {
+        characterCount: content.length,
+        characterLimit: limit,
+        urlCount: urls.length,
+        hashtagCount: hashtags.length
+      }
     };
+  }
+  
+  formatContent(content: string): string {
+    // Facebook preserves formatting, just return as-is
+    return content;
+  }
+  
+  getMediaRequirements(type: 'image' | 'video') {
+    if (type === 'image') {
+      return {
+        maxSize: 4 * 1024 * 1024, // 4MB
+        supportedFormats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+        maxDimensions: { width: 2048, height: 2048 },
+        minDimensions: { width: 200, height: 200 },
+        aspectRatios: {
+          square: { width: 1, height: 1 },
+          landscape: { width: 1.91, height: 1 },
+          portrait: { width: 4, height: 5 },
+        },
+      };
+    } else {
+      return {
+        maxSize: 4 * 1024 * 1024 * 1024, // 4GB
+        supportedFormats: ['mp4', 'mov'],
+        maxDuration: 240 * 60, // 240 minutes
+        minDuration: 1,
+        aspectRatios: {
+          square: { width: 1, height: 1 },
+          landscape: { width: 16, height: 9 },
+          portrait: { width: 9, height: 16 },
+        },
+      };
+    }
   }
   
   getCharacterLimit(): number {

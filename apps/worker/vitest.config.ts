@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [tsconfigPaths()],
   test: {
     environment: 'node',
-    setupFiles: ['./test/setup.ts'],
+    setupFiles: ['./vitest.setup.ts'],
     globals: true,
     poolOptions: {
       threads: {
@@ -24,17 +24,27 @@ export default defineConfig({
         '**/*.d.ts',
         '**/*.types.ts',
         'test/**',
-        '**/tests/**',
+        '**/test-utils/**',
         '**/__tests__/**',
         'coverage/**'
-      ]
+      ],
+      thresholds: {
+        branches: 80,
+        functions: 80,
+        lines: 85,
+        statements: 85
+      }
     },
-    testTimeout: 30000, // Longer timeout for worker tests
-    hookTimeout: 10000
+    testTimeout: 30000,
+    hookTimeout: 30000,
+    isolate: true,
+    pool: 'threads'
   },
   resolve: {
     alias: {
       '@': resolve(__dirname, './src'),
+      '@/test-utils': resolve(__dirname, './src/test-utils'),
+      '@test': resolve(__dirname, './src/test-utils'),
       '@repo/database': resolve(__dirname, '../../packages/database'),
       '@repo/shared': resolve(__dirname, '../../packages/shared'),
       '@repo/redis': resolve(__dirname, '../../packages/redis')

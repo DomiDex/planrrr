@@ -5,11 +5,10 @@
 import { prisma } from '@repo/database';
 import type { Job } from 'bullmq';
 import type { Platform } from '@repo/database';
-import { FacebookPublisher } from '../publishers/facebook.js';
-import { TwitterPublisher } from '../publishers/twitter.js';
-import { InstagramPublisher } from '../publishers/instagram.js';
-import { YouTubePublisher } from '../publishers/youtube.js';
-import { LinkedInPublisher } from '../publishers/linkedin.js';
+import { FacebookPublisher } from '../publishers/facebook.publisher.js';
+import { XPublisher, TwitterPublisher } from '../publishers/x.publisher.js';
+import { InstagramPublisher } from '../publishers/instagram.publisher.js';
+import { YouTubePublisher } from '../publishers/youtube.publisher.js';
 
 export interface PublishJobData {
   postId: string;
@@ -41,7 +40,9 @@ export async function processPublishJob(job: Job<PublishJobData>): Promise<Publi
     });
 
     if (!post) {
-      throw new Error(`Post ${postId} not found`);
+      const errorMsg = `Post ${postId} not found`;
+      await job.log(errorMsg);
+      throw new Error(errorMsg);
     }
 
     if (post.status === 'PUBLISHED') {
@@ -66,27 +67,33 @@ export async function processPublishJob(job: Job<PublishJobData>): Promise<Publi
     await job.updateProgress(50);
 
     // Use platform-specific publisher
-    let externalId: string;
-    
+    let publisher;
     switch (platform) {
       case 'FACEBOOK':
-        externalId = await new FacebookPublisher().publish(post, connection);
+        publisher = new FacebookPublisher();
         break;
       case 'TWITTER':
-        externalId = await new TwitterPublisher().publish(post, connection);
+        publisher = new TwitterPublisher();
+        break;
+      case 'X':
+        publisher = new XPublisher();
         break;
       case 'INSTAGRAM':
-        externalId = await new InstagramPublisher().publish(post, connection);
+        publisher = new InstagramPublisher();
         break;
       case 'YOUTUBE':
-        externalId = await new YouTubePublisher().publish(post, connection);
-        break;
-      case 'LINKEDIN':
-        externalId = await new LinkedInPublisher().publish(post, connection);
+        publisher = new YouTubePublisher();
         break;
       default:
         throw new Error(`Unsupported platform: ${platform}`);
     }
+
+    const result = await publisher.publish(post, connection);
+    if (!result.success) {
+      throw new Error(result.error?.message || 'Failed to publish');
+    }
+    
+    const externalId = result.platformPostId || result.externalId || '';
 
     await job.updateProgress(80);
 

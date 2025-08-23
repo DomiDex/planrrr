@@ -161,6 +161,8 @@
         "TEST_ISOLATION",
         "NODE_ENV",
         "DEBUG",
+        "DEBUG_TESTS",
+        "DEBUG_PERFORMANCE",
         "API_KEY_SECRET",
         "RATE_LIMIT_WINDOW_MS",
         "RATE_LIMIT_MAX_REQUESTS"

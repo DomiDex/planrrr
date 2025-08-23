@@ -9,11 +9,22 @@ export interface ValidationResult {
   characterCount: number;
   characterLimit: number;
   errors?: string[];
+  warnings?: string[];
+  metadata?: Record<string, unknown>;
 }
 
 export interface PublishResult {
-  externalId: string;
+  success?: boolean;
+  externalId?: string;
+  platformPostId?: string;
   url?: string;
+  publishedAt?: Date;
+  error?: {
+    code: string;
+    message: string;
+    retryAfter?: number;
+    details?: unknown;
+  };
   metrics?: Record<string, unknown>;
 }
 
