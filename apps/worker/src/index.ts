@@ -4,7 +4,7 @@
 
 import { initializeRedis, RedisClient, QueueManager } from '@repo/redis';
 import { prisma } from '@repo/database';
-import type { Job } from 'bullmq';
+import { processPublishJob } from './processors/publish.js';
 
 // Initialize Redis with provider configuration
 initializeRedis();
@@ -39,99 +39,6 @@ QueueManager.createQueue({
     }
   }
 });
-
-// Define job processor
-async function processPublishJob(job: Job) {
-  const { postId, platform } = job.data;
-  console.log(`Processing job ${job.id}: Publishing post ${postId} to ${platform}`);
-
-  try {
-    await job.updateProgress(10);
-
-    const post = await prisma.post.findUnique({
-      where: { id: postId },
-      include: {
-        team: true,
-        user: true,
-        publications: true
-      }
-    });
-
-    if (!post) {
-      throw new Error(`Post ${postId} not found`);
-    }
-
-    if (post.status === 'PUBLISHED') {
-      console.log(`Post ${postId} already published`);
-      return { alreadyPublished: true };
-    }
-
-    await job.updateProgress(30);
-
-    const connection = await prisma.connection.findFirst({
-      where: {
-        teamId: post.teamId,
-        platform,
-        status: 'ACTIVE'
-      }
-    });
-
-    if (!connection) {
-      throw new Error(`No active ${platform} connection for team ${post.teamId}`);
-    }
-
-    await job.updateProgress(50);
-
-    // TODO: Implement platform-specific publishers
-    console.log(`Publishing to ${platform}...`);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    await job.updateProgress(80);
-
-    await prisma.$transaction([
-      prisma.post.update({
-        where: { id: postId },
-        data: {
-          status: 'PUBLISHED',
-          publishedAt: new Date()
-        }
-      }),
-      prisma.publication.create({
-        data: {
-          postId,
-          platform,
-          externalId: `${platform.toLowerCase()}_${Date.now()}`,
-          publishedAt: new Date(),
-          status: 'PUBLISHED',
-          url: `https://${platform.toLowerCase()}.com/post/example`
-        }
-      })
-    ]);
-
-    await job.updateProgress(100);
-
-    console.log(`✅ Successfully published post ${postId} to ${platform}`);
-    return {
-      success: true,
-      publishedAt: new Date(),
-      platform
-    };
-
-  } catch (error) {
-    console.error(`❌ Failed to publish post ${postId}:`, error);
-    
-    await prisma.publication.create({
-      data: {
-        postId,
-        platform,
-        status: 'FAILED',
-        error: error instanceof Error ? error.message : 'Unknown error'
-      }
-    });
-
-    throw error;
-  }
-}
 
 // Create worker
 QueueManager.createWorker(

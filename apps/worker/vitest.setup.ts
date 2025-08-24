@@ -1,12 +1,16 @@
 import { beforeAll, afterAll, beforeEach, afterEach, vi, expect } from 'vitest';
 import { config } from 'dotenv';
-import { mockServer } from './src/test-utils/mocks/server.js';
+
+// IMPORTANT: Set NODE_ENV before any imports that use env.ts
+process.env.NODE_ENV = 'test';
 
 // Load test environment
 config({ path: '.env.test' });
 
+// Now import modules that depend on environment variables
+import { mockServer } from './src/test-utils/mocks/server.js';
+
 // Set test environment variables if not already set
-process.env.NODE_ENV = 'test';
 process.env.SENTRY_DSN = process.env.SENTRY_DSN || '';
 process.env.LOG_LEVEL = process.env.LOG_LEVEL || 'error';
 process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://test:test@localhost:5432/planrrr_test';
@@ -15,7 +19,7 @@ process.env.REDIS_PORT = process.env.REDIS_PORT || '6379';
 
 // Setup mock server for external API calls
 beforeAll(() => {
-  mockServer.listen({ onUnhandledRequest: 'error' });
+  mockServer.listen({ onUnhandledRequest: 'warn' });
 });
 
 afterAll(() => {

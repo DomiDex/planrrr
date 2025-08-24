@@ -1,244 +1,190 @@
-import { z } from 'zod';
-import { 
-  BasePublisher, 
-  type PublishResult, 
-  type ValidationResult,
-  ValidationError,
-  MediaUploadError 
-} from './base.publisher.js';
+// Package: @repo/worker
+// Path: apps/worker/src/publishers/facebook.publisher.ts
+// Dependencies: @repo/database
+
+import { BasePublisher, PublishResult, ValidationResult } from './base.publisher.js';
 import type { Post, Connection } from '@repo/database';
-import { PLATFORM_CONFIG } from '../config/constants.js';
-import { env } from '../config/env.js';
-
-const FacebookMetadataSchema = z.object({
-  pageId: z.string(),
-  pageName: z.string().optional()
-});
-
-const FacebookResponseSchema = z.object({
-  id: z.string(),
-  post_id: z.string().optional()
-});
+import { oauthService } from '../services/auth/oauth.service.js';
+import { rateLimiter } from '../services/rate-limiter.service.js';
+import { retryService } from '../services/retry.service.js';
+import { PublisherError } from '../lib/errors.js';
+import { logger } from '../lib/logger.js';
+import { FacebookMediaUploadService } from '../services/facebook/media-upload.service.js';
+import { FacebookApiClient } from '../services/facebook/api-client.service.js';
+import { FacebookContentFormatter } from '../services/facebook/content-formatter.service.js';
+import { FacebookValidator } from '../services/facebook/validator.service.js';
 
 export class FacebookPublisher extends BasePublisher {
-  private readonly apiVersion = env.FACEBOOK_API_VERSION;
-  private readonly baseUrl = env.META_GRAPH_API_URL;
+  protected platformName = 'FACEBOOK' as const;
+  protected maxRetries = 3;
+  protected retryDelay = 2000;
   
+  private readonly mediaUploadService: FacebookMediaUploadService;
+  private readonly apiClient: FacebookApiClient;
+  private readonly contentFormatter: FacebookContentFormatter;
+  private readonly validator: FacebookValidator;
+
   constructor() {
     super('FACEBOOK');
+    this.mediaUploadService = new FacebookMediaUploadService();
+    this.apiClient = new FacebookApiClient();
+    this.contentFormatter = new FacebookContentFormatter();
+    this.validator = new FacebookValidator();
   }
-  
-  async publish(
-    post: Post, 
-    connection: Connection
-  ): Promise<PublishResult> {
-    const conn = await this.refreshTokenIfNeeded(connection);
-    
-    const metadata = FacebookMetadataSchema.parse(conn.metadata);
-    
+
+  async publish(post: Post, connection: Connection): Promise<PublishResult> {
     try {
-      let externalId: string;
+      const conn = await oauthService.refreshTokenIfNeeded(connection);
+      await rateLimiter.acquire('FACEBOOK');
       
-      if (post.mediaUrls && post.mediaUrls.length > 0) {
-        externalId = await this.publishWithMedia(
-          post, 
-          conn, 
-          metadata.pageId
+      const pageId = this.extractPageId(conn);
+      const formattedContent = this.contentFormatter.formatContent(post.content);
+      
+      const publishData: Record<string, unknown> = {
+        message: formattedContent.message
+      };
+
+      if (formattedContent.link) {
+        const metadata = post.metadata as Record<string, unknown> | null;
+        const linkAttachment = this.contentFormatter.createLinkAttachment(
+          formattedContent.link,
+          metadata?.linkTitle as string | undefined,
+          metadata?.linkDescription as string | undefined
         );
-      } else {
-        externalId = await this.publishTextPost(
-          post, 
-          conn, 
-          metadata.pageId
-        );
+        Object.assign(publishData, linkAttachment);
       }
-      
-      const postUrl = `https://www.facebook.com/${metadata.pageId}/posts/${externalId}`;
-      
-      this.logger.info('Post published successfully', {
+
+      if (post.mediaUrls && post.mediaUrls.length > 0) {
+        const mediaData = await this.uploadMedia(
+          pageId,
+          conn.accessToken,
+          post.mediaUrls
+        );
+        Object.assign(publishData, mediaData);
+      }
+
+      const result = await retryService.withRetry(
+        async () => {
+          if (post.scheduledAt && post.scheduledAt > new Date()) {
+            const scheduledTime = Math.floor(post.scheduledAt.getTime() / 1000);
+            return await this.apiClient.schedulePost(
+              pageId,
+              conn.accessToken,
+              publishData,
+              scheduledTime
+            );
+          }
+          return await this.apiClient.createPost(
+            pageId,
+            conn.accessToken,
+            publishData
+          );
+        },
+        {
+          maxAttempts: this.maxRetries,
+          initialDelay: this.retryDelay
+        }
+      );
+
+      logger.info('Facebook post published successfully', {
         postId: post.id,
-        externalId,
-        url: postUrl
+        facebookPostId: result.id
       });
-      
+
       return {
         success: true,
-        externalId,
-        platformPostId: externalId,
-        url: postUrl,
+        platformPostId: result.id,
+        url: `https://facebook.com/${result.id}`,
         publishedAt: new Date()
       };
     } catch (error) {
-      this.logger.error('Facebook publish failed', { 
-        error, 
-        postId: post.id 
+      logger.error('Failed to publish to Facebook', {
+        postId: post.id,
+        error
       });
-      throw error;
+
+      return this.handleError(error);
     }
   }
-  
-  private async publishTextPost(
-    post: Post,
-    connection: Connection,
-    pageId: string
-  ): Promise<string> {
-    const endpoint = `${this.baseUrl}/${this.apiVersion}/${pageId}/feed`;
-    
-    const response = await this.httpClient.post(endpoint, {
-      message: post.content,
-      access_token: connection.accessToken,
-      published: true
-    });
-    
-    const data = FacebookResponseSchema.parse(response.data);
-    return data.id;
-  }
-  
-  private async publishWithMedia(
-    post: Post,
-    connection: Connection,
-    pageId: string
-  ): Promise<string> {
-    const mediaUrls = post.mediaUrls!.slice(
-      0, 
-      PLATFORM_CONFIG.FACEBOOK.MEDIA_LIMIT
-    );
-    
-    const firstMediaUrl = mediaUrls[0];
-    if (mediaUrls.length === 1 && firstMediaUrl && this.isImageUrl(firstMediaUrl)) {
-      const endpoint = `${this.baseUrl}/${this.apiVersion}/${pageId}/photos`;
-      
-      const response = await this.httpClient.post(endpoint, {
-        message: post.content,
-        url: firstMediaUrl,
-        access_token: connection.accessToken,
-        published: true
-      });
-      
-      const data = FacebookResponseSchema.parse(response.data);
-      return data.post_id || data.id;
-    }
-    
-    const attachedMedia = await this.uploadMultipleMedia(
-      mediaUrls, 
-      connection, 
-      pageId
-    );
-    
-    const endpoint = `${this.baseUrl}/${this.apiVersion}/${pageId}/feed`;
-    const response = await this.httpClient.post(endpoint, {
-      message: post.content,
-      attached_media: attachedMedia,
-      access_token: connection.accessToken,
-      published: true
-    });
-    
-    const data = FacebookResponseSchema.parse(response.data);
-    return data.id;
-  }
-  
-  private async uploadMultipleMedia(
-    mediaUrls: string[],
-    connection: Connection,
-    pageId: string
-  ): Promise<string[]> {
-    try {
-      const uploadPromises = mediaUrls.map(async (url) => {
-        const endpoint = `${this.baseUrl}/${this.apiVersion}/${pageId}/photos`;
-        
-        const response = await this.httpClient.post(endpoint, {
-          url,
-          access_token: connection.accessToken,
-          published: false
-        });
-        
-        return response.data.id;
-      });
-      
-      return await Promise.all(uploadPromises);
-    } catch {
-      throw new MediaUploadError(
-        'FACEBOOK',
-        'Failed to upload media to Facebook'
-      );
-    }
-  }
-  
+
   validate(content: string): ValidationResult {
-    const limit = PLATFORM_CONFIG.FACEBOOK.CHAR_LIMIT;
-    const errors: string[] = [];
-    const warnings: string[] = [];
-    
-    if (content.length > limit) {
-      errors.push(`Content exceeds Facebook character limit of ${limit}`);
-    }
-    
-    if (content.length === 0) {
-      errors.push('Content cannot be empty');
-    }
-    
-    // Count URLs in content
-    const urlRegex = /https?:\/\/[^\s]+/g;
-    const urls = content.match(urlRegex) || [];
-    
-    // Count hashtags
-    const hashtagRegex = /#\w+/g;
-    const hashtags = content.match(hashtagRegex) || [];
-    
-    if (hashtags.length > 30) {
-      warnings.push('Consider using fewer hashtags for better engagement');
-    }
+    const contentValidation = this.validator.validateContent(content);
     
     return {
-      valid: errors.length === 0,
+      valid: contentValidation.valid,
       characterCount: content.length,
-      characterLimit: limit,
-      errors,
-      warnings,
-      metadata: {
-        characterCount: content.length,
-        characterLimit: limit,
-        urlCount: urls.length,
-        hashtagCount: hashtags.length
-      }
+      characterLimit: this.getCharacterLimit(),
+      errors: contentValidation.errors,
+      warnings: contentValidation.warnings
     };
   }
-  
-  formatContent(content: string): string {
-    // Facebook preserves formatting, just return as-is
-    return content;
-  }
-  
-  getMediaRequirements(type: 'image' | 'video') {
-    if (type === 'image') {
-      return {
-        maxSize: 4 * 1024 * 1024, // 4MB
-        supportedFormats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
-        maxDimensions: { width: 2048, height: 2048 },
-        minDimensions: { width: 200, height: 200 },
-        aspectRatios: {
-          square: { width: 1, height: 1 },
-          landscape: { width: 1.91, height: 1 },
-          portrait: { width: 4, height: 5 },
-        },
-      };
-    } else {
-      return {
-        maxSize: 4 * 1024 * 1024 * 1024, // 4GB
-        supportedFormats: ['mp4', 'mov'],
-        maxDuration: 240 * 60, // 240 minutes
-        minDuration: 1,
-        aspectRatios: {
-          square: { width: 1, height: 1 },
-          landscape: { width: 16, height: 9 },
-          portrait: { width: 9, height: 16 },
-        },
-      };
-    }
-  }
-  
+
   getCharacterLimit(): number {
-    return PLATFORM_CONFIG.FACEBOOK.CHAR_LIMIT;
+    return 63206;
+  }
+
+  getMediaRequirements() {
+    return this.validator.getMediaRequirements();
+  }
+
+  private async uploadMedia(
+    pageId: string,
+    accessToken: string,
+    mediaUrls: string[]
+  ): Promise<Record<string, unknown>> {
+    if (!mediaUrls[0]) {
+      throw new PublisherError('NO_MEDIA', 'No media files provided');
+    }
+    
+    const isVideo = mediaUrls[0].match(/\.(mp4|mov|avi)$/i);
+    
+    if (isVideo) {
+      this.mediaUploadService.validateMediaFile(mediaUrls[0], 'video');
+      const result = await this.mediaUploadService.uploadVideo(
+        pageId,
+        accessToken,
+        mediaUrls[0]
+      );
+      return { attached_media: [{ media_fbid: result.id }] };
+    }
+
+    if (mediaUrls.length === 1) {
+      this.mediaUploadService.validateMediaFile(mediaUrls[0], 'image');
+      const result = await this.mediaUploadService.uploadImage(
+        pageId,
+        accessToken,
+        mediaUrls[0]
+      );
+      return { attached_media: [{ media_fbid: result.id }] };
+    }
+
+    const carouselItems = await this.mediaUploadService.createCarousel(
+      pageId,
+      accessToken,
+      mediaUrls
+    );
+    return { attached_media: carouselItems };
+  }
+
+  private extractPageId(connection: Connection): string {
+    const metadata = connection.metadata as Record<string, unknown>;
+    const pageId = metadata?.pageId as string;
+
+    if (!pageId) {
+      throw new PublisherError(
+        'MISSING_PAGE_ID',
+        'Facebook page ID not found in connection metadata'
+      );
+    }
+
+    return pageId;
+  }
+
+  private shouldRetry(error: unknown): boolean {
+    if (error instanceof PublisherError) {
+      return ['RATE_LIMIT', 'NETWORK_ERROR'].includes(error.code);
+    }
+    return false;
   }
   
   protected async refreshToken(connection: Connection): Promise<{
@@ -246,33 +192,6 @@ export class FacebookPublisher extends BasePublisher {
     refreshToken?: string;
     expiresIn: number;
   }> {
-    if (!env.FACEBOOK_APP_ID || !env.FACEBOOK_APP_SECRET) {
-      throw new ValidationError(
-        'FACEBOOK',
-        'Facebook API credentials not configured'
-      );
-    }
-    
-    const endpoint = `${this.baseUrl}/${this.apiVersion}/oauth/access_token`;
-    
-    const response = await this.httpClient.get(endpoint, {
-      params: {
-        grant_type: 'fb_exchange_token',
-        client_id: env.FACEBOOK_APP_ID,
-        client_secret: env.FACEBOOK_APP_SECRET,
-        fb_exchange_token: connection.refreshToken || connection.accessToken
-      }
-    });
-    
-    return {
-      accessToken: response.data.access_token,
-      expiresIn: response.data.expires_in || 5183999
-    };
-  }
-  
-  private isImageUrl(url: string): boolean {
-    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
-    const lowerUrl = url.toLowerCase();
-    return imageExtensions.some(ext => lowerUrl.includes(ext));
+    return oauthService.refreshAccessToken('FACEBOOK', connection.refreshToken!);
   }
 }

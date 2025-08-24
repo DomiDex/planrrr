@@ -6,9 +6,10 @@ import { prisma } from '@repo/database';
 import type { Job } from 'bullmq';
 import type { Platform } from '@repo/database';
 import { FacebookPublisher } from '../publishers/facebook.publisher.js';
-import { XPublisher, TwitterPublisher } from '../publishers/x.publisher.js';
+import { XPublisher } from '../publishers/x.publisher.js';
 import { InstagramPublisher } from '../publishers/instagram.publisher.js';
 import { YouTubePublisher } from '../publishers/youtube.publisher.js';
+import { LinkedInPublisher } from '../publishers/linkedin.publisher.js';
 
 export interface PublishJobData {
   postId: string;
@@ -73,10 +74,7 @@ export async function processPublishJob(job: Job<PublishJobData>): Promise<Publi
         publisher = new FacebookPublisher();
         break;
       case 'TWITTER':
-        publisher = new TwitterPublisher();
-        break;
-      case 'X':
-        publisher = new XPublisher();
+        publisher = new XPublisher(); // XPublisher handles Twitter
         break;
       case 'INSTAGRAM':
         publisher = new InstagramPublisher();
@@ -84,16 +82,22 @@ export async function processPublishJob(job: Job<PublishJobData>): Promise<Publi
       case 'YOUTUBE':
         publisher = new YouTubePublisher();
         break;
+      case 'LINKEDIN':
+        publisher = new LinkedInPublisher();
+        break;
       default:
         throw new Error(`Unsupported platform: ${platform}`);
     }
 
     const result = await publisher.publish(post, connection);
     if (!result.success) {
-      throw new Error(result.error?.message || 'Failed to publish');
+      const errorMessage = typeof result.error === 'string' 
+        ? result.error 
+        : result.error?.message || 'Failed to publish';
+      throw new Error(errorMessage);
     }
     
-    const externalId = result.platformPostId || result.externalId || '';
+    const externalId = result.platformPostId || '';
 
     await job.updateProgress(80);
 

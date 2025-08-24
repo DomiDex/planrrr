@@ -2,10 +2,21 @@ import { z } from 'zod';
 import dotenv from 'dotenv';
 import path from 'path';
 
-// Load environment variables from .env file
-dotenv.config({ 
-  path: path.resolve(process.cwd(), '.env') 
-});
+// Determine if we're in test mode
+const isTestMode = process.env.NODE_ENV === 'test';
+
+// Load environment variables from appropriate .env file
+if (isTestMode) {
+  // In test mode, load .env.test
+  dotenv.config({ 
+    path: path.resolve(process.cwd(), '.env.test') 
+  });
+} else {
+  // Otherwise, load regular .env
+  dotenv.config({ 
+    path: path.resolve(process.cwd(), '.env') 
+  });
+}
 
 const envSchema = z.object({
   // Node Environment
@@ -71,8 +82,13 @@ const envSchema = z.object({
     .default(10000),
   
   // Social Media APIs - Facebook/Meta
-  FACEBOOK_APP_ID: z.string().min(1).optional(),
-  FACEBOOK_APP_SECRET: z.string().min(1).optional(),
+  // In test mode, these are optional with defaults
+  FACEBOOK_APP_ID: isTestMode 
+    ? z.string().default('test_facebook_app_id')
+    : z.string().min(1).optional(),
+  FACEBOOK_APP_SECRET: isTestMode
+    ? z.string().default('test_facebook_app_secret')
+    : z.string().min(1).optional(),
   FACEBOOK_API_VERSION: z.string().default('v18.0'),
   META_GRAPH_API_URL: z
     .string()
@@ -80,36 +96,55 @@ const envSchema = z.object({
     .default('https://graph.facebook.com'),
   
   // Social Media APIs - Twitter/X
-  TWITTER_API_KEY: z.string().min(1).optional(),
-  TWITTER_API_SECRET: z.string().min(1).optional(),
-  TWITTER_BEARER_TOKEN: z.string().min(1).optional(),
+  TWITTER_API_KEY: isTestMode
+    ? z.string().default('test_twitter_api_key')
+    : z.string().min(1).optional(),
+  TWITTER_API_SECRET: isTestMode
+    ? z.string().default('test_twitter_api_secret')
+    : z.string().min(1).optional(),
+  TWITTER_BEARER_TOKEN: isTestMode
+    ? z.string().default('test_twitter_bearer_token')
+    : z.string().min(1).optional(),
   TWITTER_API_URL: z
     .string()
     .url()
     .default('https://api.twitter.com'),
   
   // Social Media APIs - YouTube
-  YOUTUBE_API_KEY: z.string().min(1).optional(),
-  YOUTUBE_CLIENT_ID: z.string().min(1).optional(),
-  YOUTUBE_CLIENT_SECRET: z.string().min(1).optional(),
+  YOUTUBE_API_KEY: isTestMode
+    ? z.string().default('test_youtube_api_key')
+    : z.string().min(1).optional(),
+  YOUTUBE_CLIENT_ID: isTestMode
+    ? z.string().default('test_youtube_client_id')
+    : z.string().min(1).optional(),
+  YOUTUBE_CLIENT_SECRET: isTestMode
+    ? z.string().default('test_youtube_client_secret')
+    : z.string().min(1).optional(),
   YOUTUBE_API_URL: z
     .string()
     .url()
     .default('https://www.googleapis.com/youtube/v3'),
   
   // Social Media APIs - LinkedIn
-  LINKEDIN_CLIENT_ID: z.string().min(1).optional(),
-  LINKEDIN_CLIENT_SECRET: z.string().min(1).optional(),
+  LINKEDIN_CLIENT_ID: isTestMode
+    ? z.string().default('test_linkedin_client_id')
+    : z.string().min(1).optional(),
+  LINKEDIN_CLIENT_SECRET: isTestMode
+    ? z.string().default('test_linkedin_client_secret')
+    : z.string().min(1).optional(),
   LINKEDIN_API_URL: z
     .string()
     .url()
     .default('https://api.linkedin.com'),
   
   // Monitoring & Observability
-  SENTRY_DSN: z.string().url().optional(),
+  // Allow empty string for SENTRY_DSN in test mode
+  SENTRY_DSN: isTestMode 
+    ? z.string().optional() 
+    : z.string().url().optional(),
   SENTRY_ENVIRONMENT: z
-    .enum(['development', 'staging', 'production'])
-    .default('development'),
+    .enum(['development', 'staging', 'production', 'test'])
+    .default(isTestMode ? 'test' : 'development'),
   SENTRY_TRACES_SAMPLE_RATE: z.coerce
     .number()
     .min(0)

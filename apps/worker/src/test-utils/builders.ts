@@ -119,6 +119,15 @@ export class ConnectionBuilder {
   withAccountInfo(accountId: string, accountName: string): this {
     this.connection.accountId = accountId;
     this.connection.accountName = accountName;
+    
+    // For Facebook/Instagram, also set pageId in metadata
+    if (this.connection.platform === 'FACEBOOK' || this.connection.platform === 'INSTAGRAM') {
+      this.connection.metadata = {
+        ...(this.connection.metadata as Record<string, unknown> || {}),
+        pageId: accountId
+      };
+    }
+    
     return this;
   }
 

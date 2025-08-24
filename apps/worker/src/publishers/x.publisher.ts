@@ -3,10 +3,10 @@ import type { Post, Connection } from '@repo/database';
 
 export class XPublisher extends BasePublisher {
   constructor() {
-    super('X');
+    super('TWITTER');
   }
 
-  async publish(post: Post, connection: Connection): Promise<PublishResult> {
+  async publish(post: Post, _connection: Connection): Promise<PublishResult> {
     // Validate content
     const validation = this.validate(post.content);
     if (!validation.valid) {
@@ -55,7 +55,7 @@ export class XPublisher extends BasePublisher {
     return 280; // X (Twitter) character limit
   }
 
-  protected async refreshToken(connection: Connection): Promise<{
+  protected async refreshToken(_connection: Connection): Promise<{
     accessToken: string;
     refreshToken?: string;
     expiresIn: number;

@@ -48,6 +48,24 @@ export abstract class BasePublisher {
   abstract validate(content: string): ValidationResult;
   abstract getCharacterLimit(): number;
   
+  protected abstract refreshToken(connection: Connection): Promise<{
+    accessToken: string;
+    refreshToken?: string;
+    expiresIn: number;
+  }>;
+  
+  protected handleError(error: unknown): PublishResult {
+    this.logger.error('Publishing failed', { error, platform: this.platform });
+    
+    return {
+      success: false,
+      error: {
+        code: 'PUBLISH_ERROR',
+        message: error instanceof Error ? error.message : 'Unknown error occurred'
+      }
+    };
+  }
+  
   protected async refreshTokenIfNeeded(
     connection: Connection
   ): Promise<Connection> {
@@ -85,12 +103,6 @@ export abstract class BasePublisher {
       throw new TokenExpiredError(this.platform);
     }
   }
-  
-  protected abstract refreshToken(connection: Connection): Promise<{
-    accessToken: string;
-    refreshToken?: string;
-    expiresIn: number;
-  }>;
   
   private setupInterceptors(): void {
     this.httpClient.interceptors.request.use(
